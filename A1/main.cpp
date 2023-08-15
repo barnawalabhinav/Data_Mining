@@ -22,38 +22,38 @@ public:
         : item(_item), count(_count), parent(_parent) {}
 };
 
-map<string, int> encoding;
+map<string, int> *encoding = new map<string, int>();
 int value = -1;
 string outputFile = "output.dat";
 
 TreeNode *buildTree(const vector<vector<int>> &transactions)
 {
-    unordered_map<int, int> frequency;
+    unordered_map<int, int> *frequency = new unordered_map<int, int>();
     for (const auto &transaction : transactions)
         for (int item : transaction)
-            frequency[item]++;
+            (*frequency)[item]++;
 
-    vector<int> frequentItems;
-    for (const auto &entry : frequency)
-        frequentItems.push_back(entry.first);
+    vector<int> *frequentItems = new vector<int>();
+    for (const auto &entry : (*frequency))
+        (*frequentItems).push_back(entry.first);
 
-    sort(frequentItems.begin(), frequentItems.end(), [&](int a, int b)
-         { return frequency[a] > frequency[b]; });
+    sort((*frequentItems).begin(), (*frequentItems).end(), [&](int a, int b)
+         { return (*frequency)[a] > (*frequency)[b]; });
 
-    unordered_map<int, TreeNode *> headerTable;
+    // unordered_map<int, TreeNode *> headerTable;
     TreeNode *root = new TreeNode(-1, 0);
     for (const auto &transaction : transactions)
     {
-        vector<int> filteredTransaction;
+        vector<int> *filteredTransaction = new vector<int>();
         for (int item : transaction)
-            if (find(frequentItems.begin(), frequentItems.end(), item) != frequentItems.end())
-                filteredTransaction.push_back(item);
+            if (find((*frequentItems).begin(), (*frequentItems).end(), item) != (*frequentItems).end())
+                (*filteredTransaction).push_back(item);
 
-        sort(filteredTransaction.begin(), filteredTransaction.end(), [&](int a, int b)
-             { return frequency[a] > frequency[b] || (frequency[a] == frequency[b] && a < b); });
+        sort((*filteredTransaction).begin(), (*filteredTransaction).end(), [&](int a, int b)
+             { return (*frequency)[a] > (*frequency)[b] || ((*frequency)[a] == (*frequency)[b] && a < b); });
 
         TreeNode *node = root;
-        for (int item : filteredTransaction)
+        for (int item : (*filteredTransaction))
         {
             if (node->children.find(item) != node->children.end())
             {
@@ -67,14 +67,14 @@ TreeNode *buildTree(const vector<vector<int>> &transactions)
                 node->children[item] = child;
                 node = child;
 
-                if (headerTable[item] == nullptr)
-                    headerTable[item] = child;
-                else
-                {
-                    while (headerTable[item]->next != nullptr)
-                        headerTable[item] = headerTable[item]->next;
-                    headerTable[item]->next = child;
-                }
+                // if (headerTable[item] == nullptr)
+                //     headerTable[item] = child;
+                // else
+                // {
+                //     while (headerTable[item]->next != nullptr)
+                //         headerTable[item] = headerTable[item]->next;
+                //     headerTable[item]->next = child;
+                // }
             }
         }
     }
@@ -99,23 +99,36 @@ bool encodeTree(TreeNode *node, int min_support, string prefix)
     }
     if (node->copy_count >= min_support && node->item >= 0 && count(prefix.begin(), prefix.end(), ' ') > 1)
     {
-        encoding[prefix] = value--;
+        (*encoding)[prefix] = value--;
         return true;
     }
     return false;
 }
 
-void proceesTransaction(string prefix, int freq)
+void write_mapping(ofstream &outFile)
+{
+    outFile << (*encoding).size() << endl;
+    for (auto e : (*encoding))
+        outFile << e.second << "\n"
+                << e.first << endl;
+}
+
+void proceesTransaction(string prefix, int freq, ofstream &outFile)
 {
     // cout<<"Process trans 1\n";
-    string ans = to_string(freq);
+    // string ans = to_string(freq);
+    string ans = "";
+
     int l = 0, r = prefix.size() - 1;
     while (l < r)
     {
         string temp = prefix.substr(l, r - l + 1);
-        if (encoding.find(temp) != encoding.end())
+        if ((*encoding).find(temp) != (*encoding).end())
         {
-            ans += " " + to_string(encoding[temp]);
+            if (ans == "")
+                ans = to_string((*encoding)[temp]);
+            else
+                ans += " " + to_string((*encoding)[temp]);
             l = r + 1;
             r = prefix.size() - 1;
             continue;
@@ -126,12 +139,25 @@ void proceesTransaction(string prefix, int freq)
             r--;
     }
     if (l < prefix.size() - 1)
-        ans += " " + prefix.substr(l, prefix.size() - l - 1);
+    {
+        if (ans == "")
+            ans = prefix.substr(l, prefix.size() - l - 1);
+        else
+            ans += " " + prefix.substr(l, prefix.size() - l - 1);
+    }
 
-    std::cout << ans << " ANS\n";
+    if (outFile.is_open())
+    {   
+        while(freq--)
+            outFile << ans << "\n";
+    }
+    else
+        std::cerr << "Failed to open the output file." << std::endl;
+
+    // std::cout << ans << " ANS\n";
 }
 
-void mineTree(TreeNode *node, int min_support, string prefix)
+void mineTree(TreeNode *node, int min_support, string prefix, ofstream &outfile)
 {
     if (node->item >= 0)
         prefix += to_string(node->item) + " ";
@@ -140,11 +166,11 @@ void mineTree(TreeNode *node, int min_support, string prefix)
     {
         TreeNode *child = childPair.second;
         node->count -= child->count;
-        mineTree(child, min_support, prefix);
+        mineTree(child, min_support, prefix, outfile);
     }
 
     if (node->count > 0)
-        proceesTransaction(prefix, node->count);
+        proceesTransaction(prefix, node->count, outfile);
 }
 
 void printTree(TreeNode *node, int level)
@@ -169,8 +195,52 @@ void printTree(TreeNode *node, int level)
     }
 
     std::cout << "------------------------------------\n";
-    for (auto &elem : encoding)
+    for (auto &elem : (*encoding))
         std::cout << elem.first << " " << elem.second << endl;
+}
+
+int decompress(string compressedPath, string outputPath)
+{
+    unordered_map<int, string> *fileEncoding = new unordered_map<int, string>();
+    ifstream compressedFile(compressedPath);
+    if (!compressedFile.is_open())
+    {
+        cerr << "Failed to open the file." << endl;
+        return 1;
+    }
+
+    ofstream outFile = ofstream(outputPath);
+    string line;
+    int lineNum = 0, numEncodings = 0, lastEncoding = 0;
+    while (getline(compressedFile, line))
+    {
+        if (lineNum == 0)
+            numEncodings = stoi(line);
+        else if (lineNum <= 2 * numEncodings)
+            if (lineNum & 1)
+                lastEncoding = stoi(line);
+            else
+                (*fileEncoding)[lastEncoding] = line;
+        else
+        {
+            istringstream tokenizer(line);
+            string token;
+
+            while (tokenizer >> token)
+            {
+                int element = stoi(token);
+                if (element < 0)
+                    outFile << (*fileEncoding)[element];
+                else
+                    outFile << element << " ";
+            }
+            // cout << "\n";
+            outFile << "\n";
+        }
+        lineNum++;
+    }
+    outFile.close();
+    return 0;
 }
 
 int main(int argc, char *argv[])
@@ -211,7 +281,14 @@ int main(int argc, char *argv[])
 
     bool flag = encodeTree(root, minSupport, "");
 
-    mineTree(root, minSupport, "");
+    ofstream outFile("out.txt");
+
+    write_mapping(outFile);
+    mineTree(root, minSupport, "", outFile);
+
+    outFile.close();
+
+    decompress("out.txt", "final_output.txt");
 
     // Print the FP-tree (not complete visualization)
     // You can create a function for better visualization
