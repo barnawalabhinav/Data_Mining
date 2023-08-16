@@ -24,7 +24,8 @@ public:
 };
 
 map<string, int> *encoding = new map<string, int>();
-int value = -1;
+vector<int> *encoding_used = new vector<int>();
+int value = -1, num_transactions = 0;
 
 TreeNode *buildTree(const vector<vector<int>> &transactions)
 {
@@ -99,21 +100,31 @@ bool encodeTree(TreeNode *node, int min_support, string prefix)
 
 void write_mapping(ofstream &outFile)
 {
-    outFile << (*encoding).size() << endl;
+    // outFile << (*encoding_used).accumulate((*encoding_used).begin(), (*encoding_used).end(), 0) << endl;
+    int size = 0;
+    for (auto e : (*encoding_used))
+        if (e)
+            size++;
+    outFile << "0 " << size << endl;
+
     for (auto e : (*encoding))
-        outFile << e.second << "\n"
-                << e.first << endl;
+        if ((*encoding_used)[-e.second])
+            outFile << e.second << "\n"
+                    << e.first << endl;
 }
 
 void processTransaction(string prefix, int freq, ofstream &outFile)
 {
     string ans = "";
+
     int l = 0, r = prefix.size() - 1;
     while (l < r)
     {
         string temp = prefix.substr(l, r - l + 1);
         if ((*encoding).find(temp) != (*encoding).end())
         {
+            (*encoding_used)[-(*encoding)[temp]] = 1;
+
             if (ans == "")
                 ans = to_string((*encoding)[temp]);
             else
@@ -225,6 +236,13 @@ int decompress(string compressedPath, string outputPath)
     return 0;
 }
 
+void deleteNodes(TreeNode *node)
+{
+    for (auto child : node->children)
+        deleteNodes(child.second);
+    delete node;
+}
+
 int compress(string dataPath, string outputPath)
 {
     vector<vector<int>> *transactions = new vector<vector<int>>();
@@ -238,6 +256,7 @@ int compress(string dataPath, string outputPath)
     string line;
     while (getline(inputFile, line))
     {
+        num_transactions++;
         vector<int> tokens;
         istringstream tokenizer(line);
         string token;
@@ -249,18 +268,21 @@ int compress(string dataPath, string outputPath)
     }
     int minSupport = 2;
     TreeNode *root = buildTree(*transactions);
+    delete transactions;
     bool flag = encodeTree(root, minSupport, "");
 
+    (*encoding_used).resize((*encoding).size() + 1);
+
     ofstream outFile(outputPath);
-    write_mapping(outFile);
+    outFile << num_transactions << "\n";
     mineTree(root, minSupport, "", outFile);
+    write_mapping(outFile);
     outFile.close();
 
     // Remember to free the allocated memory to avoid memory leaks
     // You can create a function to delete the tree nodes recursively
-    delete transactions;
     delete encoding;
-    delete root;
+    deleteNodes(root);
 
     return 0;
 }
@@ -343,7 +365,9 @@ int main(int argc, char *argv[])
     else
     {
         decompress(dataPath, outputPath);
-        cout << "Loss: " << isLossLess(dataPath, outputPath) << "\n";
+        // cout << "Loss: " << isLossLess(dataPath, outputPath) << "\n";
     }
     // return decompress(dataPath, outputPath);
 }
+
+// bash compile.sh && bash interface.sh C D_medium.dat out.txt
