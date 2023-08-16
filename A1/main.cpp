@@ -24,7 +24,7 @@ public:
 };
 
 map<string, int> *encoding = new map<string, int>();
-vector<int> *encoding_used = new vector<int>();
+vector<bool> *encoding_used = new vector<bool>();
 int value = -1, num_transactions = 0;
 
 TreeNode *buildTree(const vector<vector<int>> &transactions)
@@ -100,7 +100,6 @@ bool encodeTree(TreeNode *node, int min_support, string prefix)
 
 void write_mapping(ofstream &outFile)
 {
-    // outFile << (*encoding_used).accumulate((*encoding_used).begin(), (*encoding_used).end(), 0) << endl;
     int size = 0;
     for (auto e : (*encoding_used))
         if (e)
@@ -123,7 +122,7 @@ void processTransaction(string prefix, int freq, ofstream &outFile)
         string temp = prefix.substr(l, r - l + 1);
         if ((*encoding).find(temp) != (*encoding).end())
         {
-            (*encoding_used)[-(*encoding)[temp]] = 1;
+            (*encoding_used)[-(*encoding)[temp]] = true;
 
             if (ans == "")
                 ans = to_string((*encoding)[temp]);
@@ -195,6 +194,7 @@ void printTree(TreeNode *node, int level)
 int decompress(string compressedPath, string outputPath)
 {
     unordered_map<int, string> *fileEncoding = new unordered_map<int, string>();
+    vector<string> *transactions = new vector<string>();
     ifstream compressedFile(compressedPath);
     if (!compressedFile.is_open())
     {
@@ -204,32 +204,48 @@ int decompress(string compressedPath, string outputPath)
 
     ofstream outFile = ofstream(outputPath);
     string line;
+    bool flag = true;
     int lineNum = 0, numEncodings = 0, lastEncoding = 0;
     while (getline(compressedFile, line))
     {
-        if (lineNum == 0)
-            numEncodings = stoi(line);
-        else if (lineNum <= 2 * numEncodings)
+        if (flag)
+        {
+            istringstream tokenizer(line);
+            string token;
+            tokenizer >> token;
+            if (stoi(token) == 0)
+            {
+                flag = false;
+                tokenizer >> token;
+                numEncodings = stoi(token);
+            }
+            else
+                (*transactions).push_back(line);
+        }
+        else
+        {
+            lineNum++;
             if (lineNum & 1)
                 lastEncoding = stoi(line);
             else
                 (*fileEncoding)[lastEncoding] = line;
-        else
-        {
-            istringstream tokenizer(line);
-            string token;
-
-            while (tokenizer >> token)
-            {
-                int element = stoi(token);
-                if (element < 0)
-                    outFile << (*fileEncoding)[element];
-                else
-                    outFile << element << " ";
-            }
-            outFile << "\n";
         }
-        lineNum++;
+    }
+    compressedFile.close();
+
+    for (auto e : (*transactions))
+    {
+        istringstream tokenizer(e);
+        string token;
+        while (tokenizer >> token)
+        {
+            int element = stoi(token);
+            if (element < 0)
+                outFile << (*fileEncoding)[element];
+            else
+                outFile << element << " ";
+        }
+        outFile << "\n";
     }
     outFile.close();
     delete fileEncoding;
@@ -274,7 +290,6 @@ int compress(string dataPath, string outputPath)
     (*encoding_used).resize((*encoding).size() + 1);
 
     ofstream outFile(outputPath);
-    outFile << num_transactions << "\n";
     mineTree(root, minSupport, "", outFile);
     write_mapping(outFile);
     outFile.close();
@@ -285,41 +300,6 @@ int compress(string dataPath, string outputPath)
     deleteNodes(root);
 
     return 0;
-}
-
-bool isLossLess(string file1, string file2)
-{
-    ifstream f1(file1);
-    ifstream f2(file2);
-    string line1, line2;
-    vector<vector<int>> *v1 = new vector<vector<int>>();
-    vector<vector<int>> *v2 = new vector<vector<int>>();
-    while (getline(f1, line1) && getline(f2, line2))
-    {
-        vector<int> trans1, trans2;
-        istringstream tokenizer1(line1);
-        string token;
-        while (tokenizer1 >> token)
-            trans1.push_back(stoi(token));
-
-        istringstream tokenizer2(line2);
-        while (tokenizer2 >> token)
-            trans2.push_back(stoi(token));
-        sort(trans1.begin(), trans1.end());
-        sort(trans2.begin(), trans2.end());
-        v1->push_back(trans1);
-        v2->push_back(trans2);
-    }
-    if (getline(f1, line1) || getline(f2, line2))
-        return false;
-
-    sort(v1->begin(), v1->end());
-    sort(v2->begin(), v2->end());
-    for (int i = 0; i < v1->size(); i++)
-        for (int j = 0; j < (*v1)[i].size(); j++)
-            if ((*v1)[i][j] != (*v2)[i][j])
-                return false;
-    return true;
 }
 
 float compressionRatio(string compressedFile, string originalFile)
@@ -363,10 +343,7 @@ int main(int argc, char *argv[])
     }
     // return compress(dataPath, outputPath);
     else
-    {
-        decompress(dataPath, outputPath);
-        // cout << "Loss: " << isLossLess(dataPath, outputPath) << "\n";
-    }
+        return decompress(dataPath, outputPath);
     // return decompress(dataPath, outputPath);
 }
 
