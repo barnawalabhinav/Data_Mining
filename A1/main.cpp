@@ -6,6 +6,8 @@
 #include <fstream>
 #include <sstream>
 #include <queue>
+#include <string>
+#include <bits/stdc++.h>
 
 using namespace std;
 class TreeNode
@@ -15,7 +17,6 @@ public:
     int count;
     int copy_count;
     TreeNode *parent;
-    TreeNode *next;
     map<int, TreeNode *> children;
 
     TreeNode(int _item, int _count, TreeNode *_parent = nullptr)
@@ -24,7 +25,6 @@ public:
 
 map<string, int> *encoding = new map<string, int>();
 int value = -1;
-string outputFile = "output.dat";
 
 TreeNode *buildTree(const vector<vector<int>> &transactions)
 {
@@ -40,7 +40,6 @@ TreeNode *buildTree(const vector<vector<int>> &transactions)
     sort((*frequentItems).begin(), (*frequentItems).end(), [&](int a, int b)
          { return (*frequency)[a] > (*frequency)[b]; });
 
-    // unordered_map<int, TreeNode *> headerTable;
     TreeNode *root = new TreeNode(-1, 0);
     for (const auto &transaction : transactions)
     {
@@ -66,18 +65,11 @@ TreeNode *buildTree(const vector<vector<int>> &transactions)
                 TreeNode *child = new TreeNode(item, 1, node);
                 node->children[item] = child;
                 node = child;
-
-                // if (headerTable[item] == nullptr)
-                //     headerTable[item] = child;
-                // else
-                // {
-                //     while (headerTable[item]->next != nullptr)
-                //         headerTable[item] = headerTable[item]->next;
-                //     headerTable[item]->next = child;
-                // }
             }
         }
     }
+    delete frequency;
+    delete frequentItems;
     return root;
 }
 
@@ -113,12 +105,9 @@ void write_mapping(ofstream &outFile)
                 << e.first << endl;
 }
 
-void proceesTransaction(string prefix, int freq, ofstream &outFile)
+void processTransaction(string prefix, int freq, ofstream &outFile)
 {
-    // cout<<"Process trans 1\n";
-    // string ans = to_string(freq);
     string ans = "";
-
     int l = 0, r = prefix.size() - 1;
     while (l < r)
     {
@@ -133,28 +122,21 @@ void proceesTransaction(string prefix, int freq, ofstream &outFile)
             r = prefix.size() - 1;
             continue;
         }
-
         r--;
         while (r > l && prefix[r] != ' ')
             r--;
     }
     if (l < prefix.size() - 1)
-    {
         if (ans == "")
             ans = prefix.substr(l, prefix.size() - l - 1);
         else
             ans += " " + prefix.substr(l, prefix.size() - l - 1);
-    }
 
     if (outFile.is_open())
-    {   
-        while(freq--)
+        while (freq--)
             outFile << ans << "\n";
-    }
     else
         std::cerr << "Failed to open the output file." << std::endl;
-
-    // std::cout << ans << " ANS\n";
 }
 
 void mineTree(TreeNode *node, int min_support, string prefix, ofstream &outfile)
@@ -170,7 +152,7 @@ void mineTree(TreeNode *node, int min_support, string prefix, ofstream &outfile)
     }
 
     if (node->count > 0)
-        proceesTransaction(prefix, node->count, outfile);
+        processTransaction(prefix, node->count, outfile);
 }
 
 void printTree(TreeNode *node, int level)
@@ -234,27 +216,18 @@ int decompress(string compressedPath, string outputPath)
                 else
                     outFile << element << " ";
             }
-            // cout << "\n";
             outFile << "\n";
         }
         lineNum++;
     }
     outFile.close();
+    delete fileEncoding;
     return 0;
 }
 
-int main(int argc, char *argv[])
+int compress(string dataPath, string outputPath)
 {
-    // Reading transactions
-    bool compress = true;
-    char *dataPath;
-    char *outputPath;
-    if (argv[1] == "D")
-        compress = false;
-    dataPath = argv[2];
-    outputPath = argv[3];
-
-    vector<vector<int>> transactions;
+    vector<vector<int>> *transactions = new vector<vector<int>>();
 
     ifstream inputFile(dataPath);
     if (!inputFile.is_open())
@@ -262,7 +235,6 @@ int main(int argc, char *argv[])
         cerr << "Failed to open the file." << endl;
         return 1;
     }
-
     string line;
     while (getline(inputFile, line))
     {
@@ -273,37 +245,105 @@ int main(int argc, char *argv[])
         while (tokenizer >> token)
             tokens.push_back(stoi(token));
 
-        transactions.push_back(tokens);
+        transactions->push_back(tokens);
     }
-
     int minSupport = 2;
-    TreeNode *root = buildTree(transactions);
-
+    TreeNode *root = buildTree(*transactions);
     bool flag = encodeTree(root, minSupport, "");
 
-    ofstream outFile("out.txt");
-
+    ofstream outFile(outputPath);
     write_mapping(outFile);
     mineTree(root, minSupport, "", outFile);
-
     outFile.close();
-
-    decompress("out.txt", "final_output.txt");
-
-    // Print the FP-tree (not complete visualization)
-    // You can create a function for better visualization
-    // std::cout << "FP-tree structure:" << endl;
-    // std::cout << "Root" << endl;
-    // printTree(root, 1);
-    // for (const auto &childPair : root->children)
-    // {
-    //     TreeNode *child = childPair.second;
-    //     std::cout << "  " << child->item << " (" << child->count << ")" << endl;
-    // }
 
     // Remember to free the allocated memory to avoid memory leaks
     // You can create a function to delete the tree nodes recursively
+    delete transactions;
+    delete encoding;
     delete root;
 
     return 0;
+}
+
+bool isLossLess(string file1, string file2)
+{
+    ifstream f1(file1);
+    ifstream f2(file2);
+    string line1, line2;
+    vector<vector<int>> *v1 = new vector<vector<int>>();
+    vector<vector<int>> *v2 = new vector<vector<int>>();
+    while (getline(f1, line1) && getline(f2, line2))
+    {
+        vector<int> trans1, trans2;
+        istringstream tokenizer1(line1);
+        string token;
+        while (tokenizer1 >> token)
+            trans1.push_back(stoi(token));
+
+        istringstream tokenizer2(line2);
+        while (tokenizer2 >> token)
+            trans2.push_back(stoi(token));
+        sort(trans1.begin(), trans1.end());
+        sort(trans2.begin(), trans2.end());
+        v1->push_back(trans1);
+        v2->push_back(trans2);
+    }
+    if (getline(f1, line1) || getline(f2, line2))
+        return false;
+
+    sort(v1->begin(), v1->end());
+    sort(v2->begin(), v2->end());
+    for (int i = 0; i < v1->size(); i++)
+        for (int j = 0; j < (*v1)[i].size(); j++)
+            if ((*v1)[i][j] != (*v2)[i][j])
+                return false;
+    return true;
+}
+
+float compressionRatio(string compressedFile, string originalFile)
+{
+    ifstream cf(compressedFile);
+    ifstream of(originalFile);
+    string line;
+    int sizeCf = 0, sizeOf = 0;
+
+    while (getline(cf, line))
+    {
+        istringstream tokenizer(line);
+        string token;
+        while (tokenizer >> token)
+            sizeCf++;
+    }
+    while (getline(of, line))
+    {
+        istringstream tokenizer(line);
+        string token;
+        while (tokenizer >> token)
+            sizeOf++;
+    }
+
+    cout << "sizeCf = " << sizeCf << endl;
+    cout << "sizeOf = " << sizeOf << endl;
+    return (float)sizeCf / (float)sizeOf;
+}
+
+int main(int argc, char *argv[])
+{
+    char *dataPath;
+    char *outputPath;
+    dataPath = argv[2];
+    outputPath = argv[3];
+
+    if (strcmp(argv[1], "C") == 0)
+    {
+        compress(dataPath, outputPath);
+        cout << "Compression Ratio: " << compressionRatio(outputPath, dataPath) << "\n";
+    }
+    // return compress(dataPath, outputPath);
+    else
+    {
+        decompress(dataPath, outputPath);
+        cout << "Loss: " << isLossLess(dataPath, outputPath) << "\n";
+    }
+    // return decompress(dataPath, outputPath);
 }
