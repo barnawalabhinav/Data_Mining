@@ -42,9 +42,10 @@ TreeNode *buildTree(const vector<vector<int>> &transactions)
          { return (*frequency)[a] > (*frequency)[b]; });
 
     TreeNode *root = new TreeNode(-1, 0);
+    vector<int> *filteredTransaction;
     for (const auto &transaction : transactions)
     {
-        vector<int> *filteredTransaction = new vector<int>();
+        filteredTransaction = new vector<int>();
         for (int item : transaction)
             if (find((*frequentItems).begin(), (*frequentItems).end(), item) != (*frequentItems).end())
                 (*filteredTransaction).push_back(item);
@@ -69,6 +70,7 @@ TreeNode *buildTree(const vector<vector<int>> &transactions)
             }
         }
     }
+    delete filteredTransaction;
     delete frequency;
     delete frequentItems;
     return root;
@@ -116,31 +118,115 @@ void processTransaction(string prefix, int freq, ofstream &outFile)
 {
     string ans = "";
 
-    int l = 0, r = prefix.size() - 1;
-    while (l < r)
-    {
-        string temp = prefix.substr(l, r - l + 1);
-        if ((*encoding).find(temp) != (*encoding).end())
-        {
-            (*encoding_used)[-(*encoding)[temp]] = true;
+    /************ DP based Encoding Starts here ************/
 
-            if (ans == "")
-                ans = to_string((*encoding)[temp]);
-            else
-                ans += " " + to_string((*encoding)[temp]);
-            l = r + 1;
-            r = prefix.size() - 1;
-            continue;
+    int size = count(prefix.begin(), prefix.end(), ' ');
+    int dp[size+1];
+    dp[size] = 0;
+    for (int i = size - 1; i >= 0; i--)
+    {
+        dp[i] = size - i;
+        string code = "";
+        int cnt = 0, pos = 0;
+        while (cnt < i)
+        {
+            if (prefix[pos] == ' ')
+                cnt++;
+            pos++;
         }
-        r--;
-        while (r > l && prefix[r] != ' ')
-            r--;
+        int ptr = pos;
+        for (int j = i; j < size; j++)
+        {
+            while (ptr < prefix.size() && prefix[ptr] != ' ')
+            {
+                code.push_back(prefix[ptr]);
+                ptr++;
+            }
+            code.push_back(' ');
+            ptr++;
+            if ((*encoding).find(code) != (*encoding).end())
+                dp[i] = min(dp[i], dp[j + 1] + 1);
+            else
+                dp[i] = min(dp[i], dp[j + 1] + j - i + 1);
+        }
     }
-    if (l < prefix.size() - 1)
-        if (ans == "")
-            ans = prefix.substr(l, prefix.size() - l - 1);
-        else
-            ans += " " + prefix.substr(l, prefix.size() - l - 1);
+
+    int i = 0;
+    while (i < size)
+    {
+        string code = "";
+        int cnt = 0, pos = 0;
+        while (cnt < i)
+        {
+            if (prefix[pos] == ' ')
+                cnt++;
+            pos++;
+        }
+        int ptr = pos, j = i;
+        for (; j < size; j++)
+        {
+            while (ptr < prefix.size() && prefix[ptr] != ' ')
+            {
+                code.push_back(prefix[ptr]);
+                ptr++;
+            }
+            code.push_back(' ');
+            ptr++;
+            if ((*encoding).find(code) != (*encoding).end() && dp[i] == dp[j + 1] + 1)
+            {
+                (*encoding_used)[-(*encoding)[code]] = true;
+                if (ans == "")
+                    ans = to_string((*encoding)[code]);
+                else
+                    ans += " " + to_string((*encoding)[code]);
+                i = j + 1;
+                break;
+            }
+            else if (dp[i] == dp[j + 1] + j - i + 1)
+            {
+                code.pop_back();
+                if (ans == "")
+                    ans = code;
+                else
+                    ans += " " + code;
+                i = j + 1;
+                break;
+            }
+        }
+    }
+
+    /************ DP based Encoding Ends here ************/
+
+    /************ Greedy Encoding Starts here ************/
+
+    // int l = 0, r = prefix.size() - 1;
+    // while (l < r)
+    // {
+    //     string temp = prefix.substr(l, r - l + 1);
+    //     if ((*encoding).find(temp) != (*encoding).end())
+    //     {
+    //         (*encoding_used)[-(*encoding)[temp]] = true;
+
+    //         if (ans == "")
+    //             ans = to_string((*encoding)[temp]);
+    //         else
+    //             ans += " " + to_string((*encoding)[temp]);
+    //         l = r + 1;
+    //         r = prefix.size() - 1;
+    //         continue;
+    //     }
+    //     r--;
+    //     while (r > l && prefix[r] != ' ')
+    //         r--;
+    //     // cout << ans << ",\n";
+    // }
+    // if (l < prefix.size() - 1)
+    //     if (ans == "")
+    //         ans = prefix.substr(l, prefix.size() - l - 1);
+    //     else
+    //         ans += " " + prefix.substr(l, prefix.size() - l - 1);
+
+    /************ Greedy Encoding Ends here ************/
 
     if (outFile.is_open())
         while (freq--)
@@ -249,6 +335,7 @@ int decompress(string compressedPath, string outputPath)
     }
     outFile.close();
     delete fileEncoding;
+    delete transactions;
     return 0;
 }
 
@@ -283,6 +370,7 @@ int compress(string dataPath, string outputPath)
         transactions->push_back(tokens);
     }
     int minSupport = 2;
+    cout << "Min Support: " << minSupport << endl;
     TreeNode *root = buildTree(*transactions);
     delete transactions;
     bool flag = encodeTree(root, minSupport, "");
@@ -297,6 +385,7 @@ int compress(string dataPath, string outputPath)
     // Remember to free the allocated memory to avoid memory leaks
     // You can create a function to delete the tree nodes recursively
     delete encoding;
+    delete encoding_used;
     deleteNodes(root);
 
     return 0;
@@ -304,11 +393,9 @@ int compress(string dataPath, string outputPath)
 
 float compressionRatio(string compressedFile, string originalFile)
 {
-    ifstream cf(compressedFile);
-    ifstream of(originalFile);
     string line;
-    int sizeCf = 0, sizeOf = 0;
-
+    ifstream cf(compressedFile);
+    int sizeCf = 0;
     while (getline(cf, line))
     {
         istringstream tokenizer(line);
@@ -316,6 +403,10 @@ float compressionRatio(string compressedFile, string originalFile)
         while (tokenizer >> token)
             sizeCf++;
     }
+    cf.close();
+
+    int sizeOf = 0;
+    ifstream of(originalFile);
     while (getline(of, line))
     {
         istringstream tokenizer(line);
@@ -323,6 +414,7 @@ float compressionRatio(string compressedFile, string originalFile)
         while (tokenizer >> token)
             sizeOf++;
     }
+    of.close();
 
     cout << "sizeCf = " << sizeCf << endl;
     cout << "sizeOf = " << sizeOf << endl;
@@ -344,7 +436,4 @@ int main(int argc, char *argv[])
     // return compress(dataPath, outputPath);
     else
         return decompress(dataPath, outputPath);
-    // return decompress(dataPath, outputPath);
 }
-
-// bash compile.sh && bash interface.sh C D_medium.dat out.txt
