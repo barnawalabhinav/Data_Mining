@@ -14,23 +14,23 @@ class TreeNode
 {
 public:
     int item = -1;
-    int count;
-    int copy_count;
-    TreeNode *parent;
+    long long count = 0;
+    long long copy_count = 0;
+    TreeNode *parent = nullptr;
     map<int, TreeNode *> children;
 
-    TreeNode(int _item, int _count, TreeNode *_parent = nullptr)
-        : item(_item), count(_count), parent(_parent) {}
+    TreeNode(int _item = -1, long long _count = 0, TreeNode *_parent = nullptr)
+        : item(_item), count(_count), copy_count(_count), parent(_parent) {}
 };
 
 map<string, int> *encoding = new map<string, int>();
 vector<bool> *encoding_used = new vector<bool>();
 int value = -1, num_transactions = 0;
 
-TreeNode *buildTree(const vector<vector<int>> &transactions)
+TreeNode *buildTree(const vector<vector<int>> *transactions)
 {
     unordered_map<int, int> *frequency = new unordered_map<int, int>();
-    for (const auto &transaction : transactions)
+    for (const auto &transaction : *transactions)
         for (int item : transaction)
             (*frequency)[item]++;
 
@@ -43,7 +43,7 @@ TreeNode *buildTree(const vector<vector<int>> &transactions)
 
     TreeNode *root = new TreeNode(-1, 0);
     vector<int> *filteredTransaction;
-    for (const auto &transaction : transactions)
+    for (const auto &transaction : *transactions)
     {
         filteredTransaction = new vector<int>();
         for (int item : transaction)
@@ -120,111 +120,111 @@ void processTransaction(string prefix, int freq, ofstream &outFile)
 
     /************ DP based Encoding Starts here ************/
 
-    int size = count(prefix.begin(), prefix.end(), ' ');
-    int dp[size+1];
-    dp[size] = 0;
-    for (int i = size - 1; i >= 0; i--)
-    {
-        dp[i] = size - i;
-        string code = "";
-        int cnt = 0, pos = 0;
-        while (cnt < i)
-        {
-            if (prefix[pos] == ' ')
-                cnt++;
-            pos++;
-        }
-        int ptr = pos;
-        for (int j = i; j < size; j++)
-        {
-            while (ptr < prefix.size() && prefix[ptr] != ' ')
-            {
-                code.push_back(prefix[ptr]);
-                ptr++;
-            }
-            code.push_back(' ');
-            ptr++;
-            if ((*encoding).find(code) != (*encoding).end())
-                dp[i] = min(dp[i], dp[j + 1] + 1);
-            else
-                dp[i] = min(dp[i], dp[j + 1] + j - i + 1);
-        }
-    }
+    // int size = count(prefix.begin(), prefix.end(), ' ');
+    // int dp[size+1];
+    // dp[size] = 0;
+    // for (int i = size - 1; i >= 0; i--)
+    // {
+    //     dp[i] = size - i;
+    //     string code = "";
+    //     int cnt = 0, pos = 0;
+    //     while (cnt < i)
+    //     {
+    //         if (prefix[pos] == ' ')
+    //             cnt++;
+    //         pos++;
+    //     }
+    //     int ptr = pos;
+    //     for (int j = i; j < size; j++)
+    //     {
+    //         while (ptr < prefix.size() && prefix[ptr] != ' ')
+    //         {
+    //             code.push_back(prefix[ptr]);
+    //             ptr++;
+    //         }
+    //         code.push_back(' ');
+    //         ptr++;
+    //         if ((*encoding).find(code) != (*encoding).end())
+    //             dp[i] = min(dp[i], dp[j + 1] + 1);
+    //         else
+    //             dp[i] = min(dp[i], dp[j + 1] + j - i + 1);
+    //     }
+    // }
 
-    int i = 0;
-    while (i < size)
-    {
-        string code = "";
-        int cnt = 0, pos = 0;
-        while (cnt < i)
-        {
-            if (prefix[pos] == ' ')
-                cnt++;
-            pos++;
-        }
-        int ptr = pos, j = i;
-        for (; j < size; j++)
-        {
-            while (ptr < prefix.size() && prefix[ptr] != ' ')
-            {
-                code.push_back(prefix[ptr]);
-                ptr++;
-            }
-            code.push_back(' ');
-            ptr++;
-            if ((*encoding).find(code) != (*encoding).end() && dp[i] == dp[j + 1] + 1)
-            {
-                (*encoding_used)[-(*encoding)[code]] = true;
-                if (ans == "")
-                    ans = to_string((*encoding)[code]);
-                else
-                    ans += " " + to_string((*encoding)[code]);
-                i = j + 1;
-                break;
-            }
-            else if (dp[i] == dp[j + 1] + j - i + 1)
-            {
-                code.pop_back();
-                if (ans == "")
-                    ans = code;
-                else
-                    ans += " " + code;
-                i = j + 1;
-                break;
-            }
-        }
-    }
+    // int i = 0;
+    // while (i < size)
+    // {
+    //     string code = "";
+    //     int cnt = 0, pos = 0;
+    //     while (cnt < i)
+    //     {
+    //         if (prefix[pos] == ' ')
+    //             cnt++;
+    //         pos++;
+    //     }
+    //     int ptr = pos, j = i;
+    //     for (; j < size; j++)
+    //     {
+    //         while (ptr < prefix.size() && prefix[ptr] != ' ')
+    //         {
+    //             code.push_back(prefix[ptr]);
+    //             ptr++;
+    //         }
+    //         code.push_back(' ');
+    //         ptr++;
+    //         if ((*encoding).find(code) != (*encoding).end() && dp[i] == dp[j + 1] + 1)
+    //         {
+    //             (*encoding_used)[-(*encoding)[code]] = true;
+    //             if (ans == "")
+    //                 ans = to_string((*encoding)[code]);
+    //             else
+    //                 ans += " " + to_string((*encoding)[code]);
+    //             i = j + 1;
+    //             break;
+    //         }
+    //         else if (dp[i] == dp[j + 1] + j - i + 1)
+    //         {
+    //             code.pop_back();
+    //             if (ans == "")
+    //                 ans = code;
+    //             else
+    //                 ans += " " + code;
+    //             i = j + 1;
+    //             break;
+    //         }
+    //     }
+    // }
 
     /************ DP based Encoding Ends here ************/
 
     /************ Greedy Encoding Starts here ************/
 
-    // int l = 0, r = prefix.size() - 1;
-    // while (l < r)
-    // {
-    //     string temp = prefix.substr(l, r - l + 1);
-    //     if ((*encoding).find(temp) != (*encoding).end())
-    //     {
-    //         (*encoding_used)[-(*encoding)[temp]] = true;
+    int l = 0, r = prefix.size() - 1;
+    while (l < r)
+    {
+        string temp = prefix.substr(l, r - l + 1);
+        if ((*encoding).find(temp) != (*encoding).end())
+        {
+            (*encoding_used)[-(*encoding)[temp]] = true;
 
-    //         if (ans == "")
-    //             ans = to_string((*encoding)[temp]);
-    //         else
-    //             ans += " " + to_string((*encoding)[temp]);
-    //         l = r + 1;
-    //         r = prefix.size() - 1;
-    //         continue;
-    //     }
-    //     r--;
-    //     while (r > l && prefix[r] != ' ')
-    //         r--;
-    //     // cout << ans << ",\n";
-    // }
-    // if (l < prefix.size() - 1)
-    //     if (ans == "")
-    //         ans = prefix.substr(l, prefix.size() - l - 1);
-    //     else
-    //         ans += " " + prefix.substr(l, prefix.size() - l - 1);
+            if (ans == "")
+                ans = to_string((*encoding)[temp]);
+            else
+                ans += " " + to_string((*encoding)[temp]);
+            l = r + 1;
+            r = prefix.size() - 1;
+            continue;
+        }
+        r--;
+        while (r > l && prefix[r] != ' ')
+            r--;
+        // cout << ans << ",\n";
+    }
+    if (l < prefix.size() - 1)
+        if (ans == "")
+            ans = prefix.substr(l, prefix.size() - l - 1);
+        else
+            ans += " " + prefix.substr(l, prefix.size() - l - 1);
 
     /************ Greedy Encoding Ends here ************/
 
@@ -371,7 +371,8 @@ int compress(string dataPath, string outputPath)
     }
     int minSupport = 2;
     cout << "Min Support: " << minSupport << endl;
-    TreeNode *root = buildTree(*transactions);
+    TreeNode *root = buildTree(transactions);
+    // printTree(root, 0);
     delete transactions;
     bool flag = encodeTree(root, minSupport, "");
 
