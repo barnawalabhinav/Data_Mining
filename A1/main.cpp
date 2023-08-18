@@ -7,7 +7,7 @@
 #include <sstream>
 #include <queue>
 #include <string>
-#include <bits/stdc++.h>
+#include <chrono>
 
 using namespace std;
 class TreeNode
@@ -29,7 +29,7 @@ int value = -1, num_transactions = 0;
 
 TreeNode *buildTree(const vector<vector<int>> *transactions)
 {
-    unordered_map<int, int> *frequency = new unordered_map<int, int>();
+    unordered_map<int, long long> *frequency = new unordered_map<int, long long>();
     for (const auto &transaction : *transactions)
         for (int item : transaction)
             (*frequency)[item]++;
@@ -114,7 +114,7 @@ void write_mapping(ofstream &outFile)
                     << e.first << endl;
 }
 
-void processTransaction(string prefix, int freq, ofstream &outFile)
+void processTransaction(string prefix, long long freq, ofstream &outFile)
 {
     string ans = "";
 
@@ -369,18 +369,36 @@ int compress(string dataPath, string outputPath)
 
         transactions->push_back(tokens);
     }
-    int minSupport = 2;
+    int minSupport = 10;
     cout << "Min Support: " << minSupport << endl;
+    std::chrono::system_clock::time_point startTime = std::chrono::system_clock::now();
     TreeNode *root = buildTree(transactions);
+    std::chrono::system_clock::time_point endTime = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsedTime = endTime - startTime;
+    std::cout << "Time for Build Tree: " << elapsedTime.count() << " seconds" << std::endl;
     // printTree(root, 0);
     delete transactions;
+
+    startTime = std::chrono::system_clock::now();
     bool flag = encodeTree(root, minSupport, "");
+    endTime = std::chrono::system_clock::now();
+    elapsedTime = endTime - startTime;
+    std::cout << "Time for Encode Tree: " << elapsedTime.count() << " seconds" << std::endl;
 
     (*encoding_used).resize((*encoding).size() + 1);
-
     ofstream outFile(outputPath);
+
+    startTime = std::chrono::system_clock::now();
     mineTree(root, minSupport, "", outFile);
+    endTime = std::chrono::system_clock::now();
+    elapsedTime = endTime - startTime;
+    std::cout << "Time for Mine Tree: " << elapsedTime.count() << " seconds" << std::endl;
+
+    startTime = std::chrono::system_clock::now();
     write_mapping(outFile);
+    endTime = std::chrono::system_clock::now();
+    elapsedTime = endTime - startTime;
+    std::cout << "Time for Write Mapping: " << elapsedTime.count() << " seconds" << std::endl;
     outFile.close();
 
     // Remember to free the allocated memory to avoid memory leaks
@@ -396,7 +414,7 @@ float compressionRatio(string compressedFile, string originalFile)
 {
     string line;
     ifstream cf(compressedFile);
-    int sizeCf = 0;
+    long long sizeCf = 0;
     while (getline(cf, line))
     {
         istringstream tokenizer(line);
@@ -406,7 +424,7 @@ float compressionRatio(string compressedFile, string originalFile)
     }
     cf.close();
 
-    int sizeOf = 0;
+    long long sizeOf = 0;
     ifstream of(originalFile);
     while (getline(of, line))
     {
@@ -417,8 +435,8 @@ float compressionRatio(string compressedFile, string originalFile)
     }
     of.close();
 
-    cout << "sizeCf = " << sizeCf << endl;
-    cout << "sizeOf = " << sizeOf << endl;
+    // cout << "sizeCf = " << sizeCf << endl;
+    // cout << "sizeOf = " << sizeOf << endl;
     return (float)sizeCf / (float)sizeOf;
 }
 
@@ -429,7 +447,7 @@ int main(int argc, char *argv[])
     dataPath = argv[2];
     outputPath = argv[3];
 
-    if (strcmp(argv[1], "C") == 0)
+    if (string(argv[1]) == "C")
     {
         compress(dataPath, outputPath);
         cout << "Compression Ratio: " << compressionRatio(outputPath, dataPath) << "\n";
