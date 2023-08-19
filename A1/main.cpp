@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <vector>
 #include <unordered_map>
@@ -16,11 +17,10 @@ public:
     int item = -1;
     long long count = 0;
     long long copy_count = 0;
-    TreeNode *parent = nullptr;
     map<int, TreeNode *> children;
 
-    TreeNode(int _item = -1, long long _count = 0, TreeNode *_parent = nullptr)
-        : item(_item), count(_count), copy_count(_count), parent(_parent) {}
+    TreeNode(int _item = -1, long long _count = 0, map<int, TreeNode *> _children = map<int, TreeNode *>())
+        : item(_item), count(_count), copy_count(_count) {}
 };
 
 map<string, int> *encoding = new map<string, int>();
@@ -64,7 +64,7 @@ TreeNode *buildTree(const vector<vector<int>> *transactions)
             }
             else
             {
-                TreeNode *child = new TreeNode(item, 1, node);
+                TreeNode *child = new TreeNode(item, 1);
                 node->children[item] = child;
                 node = child;
             }
@@ -76,20 +76,54 @@ TreeNode *buildTree(const vector<vector<int>> *transactions)
     return root;
 }
 
-bool encodeTree(TreeNode *node, int min_support, string prefix)
+void mergeTree(TreeNode *from_node, TreeNode *to_node)
 {
+    // cout << "Merging " << from_node->item << " to " << to_node->item << "\n";
+    // TreeNode *to_node = to_root->children[from_node->item];
+    to_node->count += from_node->count;
+    to_node->copy_count += from_node->copy_count;
+    for (const auto childPair : from_node->children)
+    {
+        TreeNode *child = childPair.second;
+        if (to_node->children.find(child->item) != to_node->children.end())
+            mergeTree(child, to_node->children[child->item]);
+        else
+        {
+            TreeNode *newChild = new TreeNode(child->item, child->count, child->children);
+            to_node->children[newChild->item] = newChild;
+        }
+    }
+}
+
+bool encodeTree(TreeNode *node, int min_support, string prefix, TreeNode *newTreeRoot, bool buildResidual)
+{
+    // cout << node->item << " " << node->copy_count << " " << node->children.size() << "\n";
+
     if (node->children.size() == 0)
         return false;
 
     if (node->item >= 0)
         prefix += to_string(node->item) + " ";
 
-    for (const auto &childPair : node->children)
+    for (const auto childPair : node->children)
     {
         TreeNode *child = childPair.second;
         if (node->copy_count < min_support && node->item >= 0)
-            break;
-        if (encodeTree(child, min_support, prefix))
+        {
+            // cout << node->copy_count << "\n";
+            if (!buildResidual)
+                break;
+
+            if (newTreeRoot->children.find(child->item) != newTreeRoot->children.end())
+                mergeTree(child, newTreeRoot->children[child->item]);
+            else
+            {
+                TreeNode *newChild = new TreeNode(child->item, child->count, child->children);
+                newTreeRoot->children[newChild->item] = newChild;
+            }
+            continue;
+        }
+        if (encodeTree(child, min_support, prefix, newTreeRoot, buildResidual))
             node->copy_count -= child->count;
     }
     if (node->copy_count >= min_support && node->item >= 0 && count(prefix.begin(), prefix.end(), ' ') > 1)
@@ -121,7 +155,7 @@ void processTransaction(string prefix, long long freq, ofstream &outFile)
     /************ DP based Encoding Starts here ************/
 
     // int size = count(prefix.begin(), prefix.end(), ' ');
-    // int dp[size+1];
+    // int dp[size + 1];
     // dp[size] = 0;
     // for (int i = size - 1; i >= 0; i--)
     // {
@@ -199,32 +233,31 @@ void processTransaction(string prefix, long long freq, ofstream &outFile)
 
     /************ Greedy Encoding Starts here ************/
 
-    int l = 0, r = prefix.size() - 1;
-    while (l < r)
-    {
-        string temp = prefix.substr(l, r - l + 1);
-        if ((*encoding).find(temp) != (*encoding).end())
+     int l = 0, r = prefix.size() - 1;
+    while(l<prefix.size()-1)
+    {    
+        if(prefix[l]==' ') l++;
+        while (l < r)
         {
-            (*encoding_used)[-(*encoding)[temp]] = true;
+            string temp = prefix.substr(l, r - l + 1);
+            if ((*encoding).find(temp) != (*encoding).end())
+            {
+                (*encoding_used)[-(*encoding)[temp]] = true;
 
-            if (ans == "")
-                ans = to_string((*encoding)[temp]);
-            else
                 ans += " " + to_string((*encoding)[temp]);
-            l = r + 1;
-            r = prefix.size() - 1;
-            continue;
-        }
-        r--;
-        while (r > l && prefix[r] != ' ')
+                l = r + 1;
+                r = prefix.size() - 1;
+                continue;
+            }
             r--;
-        // cout << ans << ",\n";
+            while (r > l && prefix[r] != ' ')
+                r--;
+        }
+        int end = l+1; while(end<prefix.size() and prefix[end]!=' ') end++;
+        ans += " " + prefix.substr(l, end-l);
+        l=end+1; r = prefix.size() - 1;
     }
-    if (l < prefix.size() - 1)
-        if (ans == "")
-            ans = prefix.substr(l, prefix.size() - l - 1);
-        else
-            ans += " " + prefix.substr(l, prefix.size() - l - 1);
+    if(ans[0]==' ') ans=ans.substr(1);
 
     /************ Greedy Encoding Ends here ************/
 
@@ -369,7 +402,7 @@ int compress(string dataPath, string outputPath)
 
         transactions->push_back(tokens);
     }
-    int minSupport = 10;
+    int minSupport = 40;
     cout << "Min Support: " << minSupport << endl;
     std::chrono::system_clock::time_point startTime = std::chrono::system_clock::now();
     TreeNode *root = buildTree(transactions);
@@ -380,7 +413,18 @@ int compress(string dataPath, string outputPath)
     delete transactions;
 
     startTime = std::chrono::system_clock::now();
-    bool flag = encodeTree(root, minSupport, "");
+    TreeNode *residualTree1 = new TreeNode(-1, 0);
+    bool flag = encodeTree(root, minSupport, "", residualTree1, true);
+    cout << encoding->size() << endl;
+
+    TreeNode *residualTree2 = new TreeNode(-1, 0);
+    flag = encodeTree(residualTree1, minSupport / 5, "", residualTree2, false);
+    cout << encoding->size() << endl;
+
+    // TreeNode *residualTree3 = new TreeNode(-1, 0);
+    // flag = encodeTree(residualTree2, minSupport / 5, "", residualTree3, false);
+    // cout << encoding->size() << endl;
+
     endTime = std::chrono::system_clock::now();
     elapsedTime = endTime - startTime;
     std::cout << "Time for Encode Tree: " << elapsedTime.count() << " seconds" << std::endl;
@@ -403,9 +447,10 @@ int compress(string dataPath, string outputPath)
 
     // Remember to free the allocated memory to avoid memory leaks
     // You can create a function to delete the tree nodes recursively
-    delete encoding;
-    delete encoding_used;
-    deleteNodes(root);
+    // delete encoding;
+    // delete encoding_used;
+    // deleteNodes(root);
+    // deleteNodes(residualTree1);
 
     return 0;
 }
@@ -413,30 +458,40 @@ int compress(string dataPath, string outputPath)
 float compressionRatio(string compressedFile, string originalFile)
 {
     string line;
-    ifstream cf(compressedFile);
-    long long sizeCf = 0;
-    while (getline(cf, line))
-    {
-        istringstream tokenizer(line);
-        string token;
-        while (tokenizer >> token)
-            sizeCf++;
-    }
-    cf.close();
+    long long sizeCf = 0, sizeOf = 0;
+    // try
+    // {
+        ifstream cf(compressedFile);
+        istringstream tokenizer;
+        while (getline(cf, line))
+        {
+            tokenizer.clear();
+            tokenizer.str(line);
+            string token;
+            while (tokenizer >> token)
+                sizeCf++;
+        }
+        cf.close();
 
-    long long sizeOf = 0;
-    ifstream of(originalFile);
-    while (getline(of, line))
-    {
-        istringstream tokenizer(line);
-        string token;
-        while (tokenizer >> token)
-            sizeOf++;
-    }
-    of.close();
-
+        ifstream of(originalFile);
+        while (getline(of, line))
+        {
+            tokenizer.clear();
+            tokenizer.str(line);
+            string token;
+            while (tokenizer >> token)
+                sizeOf++;
+        }
+        of.close();
+    // }
+    // catch (exception e)
+    // {
+    //     cout << e.what() << ": " << line << endl;
+    //     return -1;
+    // }
     // cout << "sizeCf = " << sizeCf << endl;
     // cout << "sizeOf = " << sizeOf << endl;
+    // return (float) sizeCf;
     return (float)sizeCf / (float)sizeOf;
 }
 
