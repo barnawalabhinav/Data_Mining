@@ -16,7 +16,7 @@ public:
     int item = -1;
     long long count = 0;
     long long copy_count = 0;
-    map<int, TreeNode *> children;
+    map<int, TreeNode *> children = map<int, TreeNode *>();
 
     TreeNode(int _item = -1, long long _count = 0, map<int, TreeNode *> _children = map<int, TreeNode *>())
         : item(_item), count(_count), copy_count(_count) {}
@@ -87,10 +87,7 @@ void mergeTree(TreeNode *from_node, TreeNode *to_node)
         if (to_node->children.find(child->item) != to_node->children.end())
             mergeTree(child, to_node->children[child->item]);
         else
-        {
-            TreeNode *newChild = new TreeNode(child->item, child->count, child->children);
-            to_node->children[newChild->item] = newChild;
-        }
+            to_node->children[child->item] = new TreeNode(child->item, child->count, child->children);
     }
 }
 
@@ -116,16 +113,14 @@ bool encodeTree(TreeNode *node, int min_support, string prefix, TreeNode *newTre
             if (newTreeRoot->children.find(child->item) != newTreeRoot->children.end())
                 mergeTree(child, newTreeRoot->children[child->item]);
             else
-            {
-                TreeNode *newChild = new TreeNode(child->item, child->count, child->children);
-                newTreeRoot->children[newChild->item] = newChild;
-            }
+                newTreeRoot->children[child->item] = new TreeNode(child->item, child->count, child->children);
+
             continue;
         }
         if (encodeTree(child, min_support, prefix, newTreeRoot, buildResidual))
             node->copy_count -= child->count;
     }
-    if (node->copy_count >= min_support && node->item >= 0 && count(prefix.begin(), prefix.end(), ' ') > 1)
+    if (node->copy_count >= min_support && (*encoding).find(prefix) == (*encoding).end() && node->item >= 0 && count(prefix.begin(), prefix.end(), ' ') > 1)
     {
         (*encoding)[prefix] = value--;
         return true;
@@ -446,10 +441,10 @@ int compress(string dataPath, string outputPath)
 
     // Remember to free the allocated memory to avoid memory leaks
     // You can create a function to delete the tree nodes recursively
-    // delete encoding;
-    // delete encoding_used;
-    // deleteNodes(root);
-    // deleteNodes(residualTree1);
+    delete encoding;
+    delete encoding_used;
+    deleteNodes(root);
+    deleteNodes(residualTree1);
 
     return 0;
 }

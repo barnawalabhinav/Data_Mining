@@ -477,7 +477,7 @@ int compress(string dataPath, string outputPath)
 
         transactions->push_back(tokens);
     }
-    int minSupport = 12;
+    int minSupport = 10;
     cout << "Min Support: " << minSupport<<endl;
     std::chrono::system_clock::time_point startTime = std::chrono::system_clock::now();
     TreeNode *root = buildTree(*transactions);
@@ -513,11 +513,15 @@ int compress(string dataPath, string outputPath)
     startTime = std::chrono::system_clock::now();
     mineTree_1(root, minSupport, "", outFile);
     cout<<"mine 1 done\n";
-    mineTree_2(root, max(4, minSupport/4), "", outFile);
+    endTime = std::chrono::system_clock::now();
+    elapsedTime = endTime - startTime;
+    std::cout << "Time for Mine Tree 1: " << elapsedTime.count() << " seconds" << std::endl;
+    startTime = std::chrono::system_clock::now();
+    mineTree_2(root, max(5, minSupport/4), "", outFile);
     cout<<"mine 2 done\n";
     endTime = std::chrono::system_clock::now();
     elapsedTime = endTime - startTime;
-    std::cout << "Time for Mine Tree: " << elapsedTime.count() << " seconds" << std::endl;
+    std::cout << "Time for Mine Tree 2: " << elapsedTime.count() << " seconds" << std::endl;
     write_mapping(outFile);
     outFile.close();
 
