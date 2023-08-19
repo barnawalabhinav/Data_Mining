@@ -1,4 +1,3 @@
-
 #include <iostream>
 #include <vector>
 #include <unordered_map>
@@ -233,7 +232,7 @@ void processTransaction(string prefix, long long freq, ofstream &outFile)
 
     /************ Greedy Encoding Starts here ************/
 
-     int l = 0, r = prefix.size() - 1;
+    int l = 0, r = prefix.size() - 1;
     while(l<prefix.size()-1)
     {    
         if(prefix[l]==' ') l++;
@@ -258,7 +257,6 @@ void processTransaction(string prefix, long long freq, ofstream &outFile)
         l=end+1; r = prefix.size() - 1;
     }
     if(ans[0]==' ') ans=ans.substr(1);
-
     /************ Greedy Encoding Ends here ************/
 
     if (outFile.is_open())
