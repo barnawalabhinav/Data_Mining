@@ -257,6 +257,7 @@ void processTransaction(string prefix, long long freq, ofstream &outFile)
         l=end+1; r = prefix.size() - 1;
     }
     if(ans[0]==' ') ans=ans.substr(1);
+
     /************ Greedy Encoding Ends here ************/
 
     if (outFile.is_open())
