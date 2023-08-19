@@ -200,32 +200,30 @@ void processTransaction(string prefix, long long freq, ofstream &outFile)
     /************ Greedy Encoding Starts here ************/
 
     int l = 0, r = prefix.size() - 1;
-    while (l < r)
-    {
-        string temp = prefix.substr(l, r - l + 1);
-        if ((*encoding).find(temp) != (*encoding).end())
+    while(l<prefix.size()-1)
+    {    
+        if(prefix[l]==' ') l++;
+        while (l < r)
         {
-            (*encoding_used)[-(*encoding)[temp]] = true;
+            string temp = prefix.substr(l, r - l + 1);
+            if ((*encoding).find(temp) != (*encoding).end())
+            {
+                (*encoding_used)[-(*encoding)[temp]] = true;
 
-            if (ans == "")
-                ans = to_string((*encoding)[temp]);
-            else
                 ans += " " + to_string((*encoding)[temp]);
-            l = r + 1;
-            r = prefix.size() - 1;
-            continue;
-        }
-        r--;
-        while (r > l && prefix[r] != ' ')
+                l = r + 1;
+                r = prefix.size() - 1;
+                continue;
+            }
             r--;
-        // cout << ans << ",\n";
+            while (r > l && prefix[r] != ' ')
+                r--;
+        }
+        int end = l+1; while(end<prefix.size() and prefix[end]!=' ') end++;
+        ans += " " + prefix.substr(l, end-l);
+        l=end+1; r = prefix.size() - 1;
     }
-    if (l < prefix.size() - 1)
-        if (ans == "")
-            ans = prefix.substr(l, prefix.size() - l - 1);
-        else
-            ans += " " + prefix.substr(l, prefix.size() - l - 1);
-
+    if(ans[0]==' ') ans=ans.substr(1);
     /************ Greedy Encoding Ends here ************/
 
     if (outFile.is_open())
