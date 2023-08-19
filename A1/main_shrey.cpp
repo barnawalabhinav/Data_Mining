@@ -8,6 +8,7 @@
 #include <queue>
 #include <string>
 #include <bits/stdc++.h>
+#include <chrono>
 
 using namespace std;
 class TreeNode
@@ -476,26 +477,47 @@ int compress(string dataPath, string outputPath)
 
         transactions->push_back(tokens);
     }
-    int minSupport = 20;
+    int minSupport = 12;
     cout << "Min Support: " << minSupport<<endl;
+    std::chrono::system_clock::time_point startTime = std::chrono::system_clock::now();
     TreeNode *root = buildTree(*transactions);
+    std::chrono::system_clock::time_point endTime = std::chrono::system_clock::now();
+    std::chrono::duration<double> elapsedTime = endTime - startTime;
+    std::cout << "Time for Build Tree 1: " << elapsedTime.count() << " seconds" << std::endl;
+    startTime = std::chrono::system_clock::now();
     TreeNode *root_copy = buildTree_copy(*transactions);
+    endTime = std::chrono::system_clock::now();
+    elapsedTime = endTime - startTime;
+    std::cout << "Time for Build Tree 2: " << elapsedTime.count() << " seconds" << std::endl;
+
     delete transactions;
+    startTime = std::chrono::system_clock::now();
     int flag = encodeTree(root, minSupport, "");
+    endTime = std::chrono::system_clock::now();
+    elapsedTime = endTime - startTime;
+    std::cout << "Time for Encode Tree 1: " << elapsedTime.count() << " seconds" << std::endl;
 
-    cout<<"Map size before: "<<(*encoding).size()<<" "<<-value<<endl;
+    cout<<"Map size before: "<<(*encoding).size()<<endl;
 
+    startTime = std::chrono::system_clock::now();
     int flag_copy = encodeTree_copy(root_copy, minSupport, "");
+    endTime = std::chrono::system_clock::now();
+    elapsedTime = endTime - startTime;
+    std::cout << "Time for Encode Tree 2: " << elapsedTime.count() << " seconds" << std::endl;
 
-    cout<<"Map size after: "<<(*encoding).size()<<" "<<-value<<endl;
+    cout<<"Map size after: "<<(*encoding).size()<<endl;
 
     (*encoding_used).resize(-value + 1);
 
     ofstream outFile(outputPath);
+    startTime = std::chrono::system_clock::now();
     mineTree_1(root, minSupport, "", outFile);
     cout<<"mine 1 done\n";
     mineTree_2(root, max(4, minSupport/4), "", outFile);
     cout<<"mine 2 done\n";
+    endTime = std::chrono::system_clock::now();
+    elapsedTime = endTime - startTime;
+    std::cout << "Time for Mine Tree: " << elapsedTime.count() << " seconds" << std::endl;
     write_mapping(outFile);
     outFile.close();
 
