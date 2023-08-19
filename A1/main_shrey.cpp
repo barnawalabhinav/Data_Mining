@@ -7,7 +7,6 @@
 #include <sstream>
 #include <queue>
 #include <string>
-#include <bits/stdc++.h>
 #include <chrono>
 
 using namespace std;
@@ -15,24 +14,23 @@ class TreeNode
 {
 public:
     int item = -1;
-    int count;
-    int copy_count=0;
-    int cc_count=0;
-    TreeNode *parent;
-    map<int, TreeNode *> children;
+    long long count = 0;
+    long long copy_count = 0;
+    long long cc_count = 0;
+    map<int, TreeNode *> children = map<int, TreeNode *>();
 
-    TreeNode(int _item, int _count, TreeNode *_parent = nullptr)
-        : item(_item), count(_count), cc_count(_count), copy_count(_count), parent(_parent) {}
+    TreeNode(int _item = -1, long long _count = 0, map<int, TreeNode *> _children = map<int, TreeNode *>())
+        : item(_item), count(_count), copy_count(_count), cc_count(_count) {}
 };
 
 map<string, int> *encoding = new map<string, int>();
 vector<int> *encoding_used = new vector<int>();
 int value = -1, num_transactions = 0;
 
-TreeNode *buildTree(const vector<vector<int>> &transactions)
+TreeNode *buildTree(const vector<vector<int>> *transactions)
 {
-    unordered_map<int, int> *frequency = new unordered_map<int, int>();
-    for (const auto &transaction : transactions)
+    unordered_map<int, long long> *frequency = new unordered_map<int, long long>();
+    for (const auto &transaction : *transactions)
         for (int item : transaction)
             (*frequency)[item]++;
 
@@ -44,9 +42,10 @@ TreeNode *buildTree(const vector<vector<int>> &transactions)
          { return (*frequency)[a] > (*frequency)[b]; });
 
     TreeNode *root = new TreeNode(-1, 0);
-    for (const auto &transaction : transactions)
+    vector<int> *filteredTransaction;
+    for (const auto &transaction : *transactions)
     {
-        vector<int> *filteredTransaction = new vector<int>();
+        filteredTransaction = new vector<int>();
         for (int item : transaction)
             if (find((*frequentItems).begin(), (*frequentItems).end(), item) != (*frequentItems).end())
                 (*filteredTransaction).push_back(item);
@@ -66,21 +65,22 @@ TreeNode *buildTree(const vector<vector<int>> &transactions)
             }
             else
             {
-                TreeNode *child = new TreeNode(item, 1, node);
+                TreeNode *child = new TreeNode(item, 1);
                 node->children[item] = child;
                 node = child;
             }
         }
     }
+    delete filteredTransaction;
     delete frequency;
     delete frequentItems;
     return root;
 }
 
-TreeNode *buildTree_copy(const vector<vector<int>> &transactions)
+TreeNode *buildTree_copy(const vector<vector<int>> *transactions)
 {
-    unordered_map<int, int> *frequency = new unordered_map<int, int>();
-    for (const auto &transaction : transactions)
+    unordered_map<int, long long> *frequency = new unordered_map<int, long long>();
+    for (const auto &transaction : *transactions)
         for (int item : transaction)
             (*frequency)[item]++;
 
@@ -92,9 +92,10 @@ TreeNode *buildTree_copy(const vector<vector<int>> &transactions)
          { return (*frequency)[a] < (*frequency)[b]; });
 
     TreeNode *root = new TreeNode(-1, 0);
-    for (const auto &transaction : transactions)
+    vector<int> *filteredTransaction;
+    for (const auto &transaction : *transactions)
     {
-        vector<int> *filteredTransaction = new vector<int>();
+        filteredTransaction = new vector<int>();
         for (int item : transaction)
             if (find((*frequentItems).begin(), (*frequentItems).end(), item) != (*frequentItems).end())
                 (*filteredTransaction).push_back(item);
@@ -114,42 +115,68 @@ TreeNode *buildTree_copy(const vector<vector<int>> &transactions)
             }
             else
             {
-                TreeNode *child = new TreeNode(item, 1, node);
+                TreeNode *child = new TreeNode(item, 1);
                 node->children[item] = child;
                 node = child;
             }
         }
     }
+    delete filteredTransaction;
     delete frequency;
     delete frequentItems;
     return root;
 }
 
-int encodeTree(TreeNode *node, int min_support, string prefix)
+void mergeTree(TreeNode *from_node, TreeNode *to_node)
+{
+    // cout << "Merging " << from_node->item << " to " << to_node->item << "\n";
+    // TreeNode *to_node = to_root->children[from_node->item];
+    to_node->count += from_node->count;
+    to_node->copy_count += from_node->copy_count;
+    for (const auto childPair : from_node->children)
+    {
+        TreeNode *child = childPair.second;
+        if (to_node->children.find(child->item) != to_node->children.end())
+            mergeTree(child, to_node->children[child->item]);
+        else
+            to_node->children[child->item] = new TreeNode(child->item, child->count, child->children);
+    }
+}
+
+bool encodeTree(TreeNode *node, int min_support, string prefix, TreeNode *newTreeRoot, bool buildResidual)
 {
     if (node->children.size() == 0)
-        return -1;
+        return false;
 
     if (node->item >= 0)
         prefix += to_string(node->item) + " ";
-    
+
     int node_copy_count = node->copy_count;
 
-    for (const auto &childPair : node->children)
+    for (const auto childPair : node->children)
     {
         TreeNode *child = childPair.second;
         if (node_copy_count < min_support && node->item >= 0)
-            break;
-        int child_count = encodeTree(child, min_support, prefix);
-        if (child_count!=-1)
-            node_copy_count -= child_count;
+        {
+            if (!buildResidual)
+                break;
+
+            if (newTreeRoot->children.find(child->item) != newTreeRoot->children.end())
+                mergeTree(child, newTreeRoot->children[child->item]);
+            else
+                newTreeRoot->children[child->item] = new TreeNode(child->item, child->count, child->children);
+
+            continue;
+        }
+        if (encodeTree(child, min_support, prefix, newTreeRoot, buildResidual))
+            node_copy_count -= child->count;
     }
-    if (node_copy_count >= min_support && node->item >= 0 && count(prefix.begin(), prefix.end(), ' ') > 1)
+    if (node_copy_count >= min_support && (*encoding).find(prefix) == (*encoding).end() && node->item >= 0 && count(prefix.begin(), prefix.end(), ' ') > 1)
     {
         (*encoding)[prefix] = value--;
-        return node_copy_count;
+        return true;
     }
-    return -1;
+    return false;
 }
 
 int encodeTree_copy(TreeNode *node, int min_support, string prefix)
@@ -159,21 +186,20 @@ int encodeTree_copy(TreeNode *node, int min_support, string prefix)
 
     if (node->item >= 0)
         prefix = to_string(node->item) + " " + prefix;
-    
+
     int node_copy_count = node->copy_count;
 
-    for (const auto &childPair : node->children)
+    for (const auto childPair : node->children)
     {
         TreeNode *child = childPair.second;
         if (node_copy_count < min_support && node->item >= 0)
             break;
         int child_count = encodeTree_copy(child, min_support, prefix);
-        if (child_count!=-1)
+        if (child_count != -1)
             node_copy_count -= child_count;
     }
     if (node_copy_count >= min_support && (*encoding).find(prefix) == (*encoding).end() && node->item >= 0 && count(prefix.begin(), prefix.end(), ' ') > 1)
     {
-        // cout<<prefix<<" : "<<value<<endl;
         (*encoding)[prefix] = value--;
         return node_copy_count;
     }
@@ -189,22 +215,105 @@ void write_mapping(ofstream &outFile)
     outFile << "0 " << size << endl;
 
     for (auto e : (*encoding))
-        if ((*encoding_used)[-e.second]>1){
-            if(count(e.first.begin(), e.first.end(), ' ') == 1 and (*encoding_used)[-e.second] == 2)
+        if ((*encoding_used)[-e.second] > 1)
+        {
+            if (count(e.first.begin(), e.first.end(), ' ') == 1 and (*encoding_used)[-e.second] == 2)
                 continue;
             outFile << e.second << "\n"
                     << e.first << endl;
         }
 }
 
-void processTransaction_1(string prefix, int freq, ofstream &outFile)
+void processTransaction_1(string prefix, long long freq, ofstream &outFile)
 {
-        /************ DP based Encoding Starts here ************/
+
+    /************ DP based Encoding Starts here ************/
+    // string ans = "";
+
+    // int size = count(prefix.begin(), prefix.end(), ' ');
+    // int dp[size + 1];
+    // dp[size] = 0;
+    // for (int i = size - 1; i >= 0; i--)
+    // {
+    //     dp[i] = size - i;
+    //     string code = "";
+    //     int cnt = 0, pos = 0;
+    //     while (cnt < i)
+    //     {
+    //         if (prefix[pos] == ' ')
+    //             cnt++;
+    //         pos++;
+    //     }
+    //     int ptr = pos;
+    //     for (int j = i; j < size; j++)
+    //     {
+    //         while (ptr < prefix.size() && prefix[ptr] != ' ')
+    //         {
+    //             code.push_back(prefix[ptr]);
+    //             ptr++;
+    //         }
+    //         code.push_back(' ');
+    //         ptr++;
+    //         if ((*encoding).find(code) != (*encoding).end())
+    //             dp[i] = min(dp[i], dp[j + 1] + 1);
+    //         else
+    //             dp[i] = min(dp[i], dp[j + 1] + j - i + 1);
+    //     }
+    // }
+
+    // int i = 0;
+    // while (i < size)
+    // {
+    //     string code = "";
+    //     int cnt = 0, pos = 0;
+    //     while (cnt < i)
+    //     {
+    //         if (prefix[pos] == ' ')
+    //             cnt++;
+    //         pos++;
+    //     }
+    //     int ptr = pos, j = i;
+    //     for (; j < size; j++)
+    //     {
+    //         while (ptr < prefix.size() && prefix[ptr] != ' ')
+    //         {
+    //             code.push_back(prefix[ptr]);
+    //             ptr++;
+    //         }
+    //         code.push_back(' ');
+    //         ptr++;
+    //         if ((*encoding).find(code) != (*encoding).end() && dp[i] == dp[j + 1] + 1)
+    //         {
+    //             (*encoding_used)[-(*encoding)[code]] = true;
+    //             if (ans == "")
+    //                 ans = to_string((*encoding)[code]);
+    //             else
+    //                 ans += " " + to_string((*encoding)[code]);
+    //             i = j + 1;
+    //             break;
+    //         }
+    //         else if (dp[i] == dp[j + 1] + j - i + 1)
+    //         {
+    //             code.pop_back();
+    //             if (ans == "")
+    //                 ans = code;
+    //             else
+    //                 ans += " " + code;
+    //             i = j + 1;
+    //             break;
+    //         }
+    //     }
+    // }
+
+    /************ DP based Encoding Ends here ************/
+
+    /************ Greedy Encoding Starts here ************/
 
     int l = 0, r = prefix.size() - 1;
-    while(l<prefix.size()-1)
-    {    
-        if(prefix[l]==' ') l++;
+    while (l < prefix.size() - 1)
+    {
+        if (prefix[l] == ' ')
+            l++;
         while (l < r)
         {
             string temp = prefix.substr(l, r - l + 1);
@@ -220,48 +329,35 @@ void processTransaction_1(string prefix, int freq, ofstream &outFile)
             while (r > l && prefix[r] != ' ')
                 r--;
         }
-        int end = l+1; while(end<prefix.size() and prefix[end]!=' ') end++;
-        l=end+1; r = prefix.size() - 1;
+        int end = l + 1;
+        while (end < prefix.size() and prefix[end] != ' ')
+            end++;
+        l = end + 1;
+        r = prefix.size() - 1;
     }
 
-// ************************ Greedy normal
-
-    // int l = 0, r = prefix.size() - 1;
-    // while (l < r)
-    // {
-    //     string temp = prefix.substr(l, r - l + 1);
-    //     if ((*encoding).find(temp) != (*encoding).end())
-    //     {
-    //         (*encoding_used)[-(*encoding)[temp]] += freq;
-    //         l = r + 1;
-    //         r = prefix.size() - 1;
-    //         continue;
-    //     }
-    //     r--;
-    //     while (r > l && prefix[r] != ' ')
-    //         r--;
-    // }
+    /************ Greedy Encoding Ends here ************/
 }
 
-void processTransaction_2(string prefix, int freq, ofstream &outFile)
+void processTransaction_2(string prefix, long long freq, ofstream &outFile)
 {
     string ans = "";
-    if(freq > 1) 
-        ans="0"+to_string(freq);
-
-        /************ DP based Encoding Starts here ************/
+    if (freq > 1)
+        ans = "0" + to_string(freq);
+    /************ Greedy Encoding Starts here ************/
 
     int l = 0, r = prefix.size() - 1;
-    while(l<prefix.size()-1)
-    {    
-        if(prefix[l]==' ') l++;
+    while (l < prefix.size() - 1)
+    {
+        if (prefix[l] == ' ')
+            l++;
         while (l < r)
         {
             string temp = prefix.substr(l, r - l + 1);
             if ((*encoding).find(temp) != (*encoding).end() and (*encoding_used)[-(*encoding)[temp]] > 1)
             {
-                if(count(temp.begin(), temp.end(), ' ') == 1 and (*encoding_used)[-(*encoding)[temp]] == 2)
-                   continue;
+                if (count(temp.begin(), temp.end(), ' ') == 1 and (*encoding_used)[-(*encoding)[temp]] == 2)
+                    continue;
                 ans += " " + to_string((*encoding)[temp]);
                 l = r + 1;
                 r = prefix.size() - 1;
@@ -271,52 +367,28 @@ void processTransaction_2(string prefix, int freq, ofstream &outFile)
             while (r > l && prefix[r] != ' ')
                 r--;
         }
-        int end = l+1; while(end<prefix.size() and prefix[end]!=' ') end++;
-        ans += " " + prefix.substr(l, end-l);
-        l=end+1; r = prefix.size() - 1;
+        int end = l + 1;
+        while (end < prefix.size() and prefix[end] != ' ')
+            end++;
+        ans += " " + prefix.substr(l, end - l);
+        l = end + 1;
+        r = prefix.size() - 1;
     }
-    if(ans[0]==' ') ans=ans.substr(1);
+    if (ans[0] == ' ')
+        ans = ans.substr(1);
 
-// ************************ Greedy normal
-
-    // int l = 0, r = prefix.size() - 1;
-    // while (l < r)
-    // {
-    //     string temp = prefix.substr(l, r - l + 1);
-    //     if ((*encoding).find(temp) != (*encoding).end() and (*encoding_used)[-(*encoding)[temp]] > 1)
-    //     {
-    //         if(count(temp.begin(), temp.end(), ' ') == 1 and (*encoding_used)[-(*encoding)[temp]] == 2)
-    //             continue;
-    //         if (ans == "")
-    //             ans = to_string((*encoding)[temp]);
-    //         else
-    //             ans += " " + to_string((*encoding)[temp]);
-    //         l = r + 1;
-    //         r = prefix.size() - 1;
-    //         continue;
-    //     }
-    //     r--;
-    //     while (r > l && prefix[r] != ' ')
-    //         r--;
-    // }
-    // if (l < prefix.size() - 1)
-    //     if (ans == "")
-    //         ans = prefix.substr(l, prefix.size() - l - 1);
-    //     else
-    //         ans += " " + prefix.substr(l, prefix.size() - l - 1);
-
-    // if(ans[0]==' ') ans=ans.substr(1);
+    /************ Greedy Encoding Ends here ************/
 
     if (outFile.is_open())
-        // while (freq--)
-            outFile << ans << "\n";
+        outFile << ans << "\n";
     else
         std::cerr << "Failed to open the output file." << std::endl;
 }
 
 void mineTree_1(TreeNode *node, int min_support, string prefix, ofstream &outfile)
 {
-    if(node == nullptr) return;
+    if (node == nullptr)
+        return;
     if (node->item >= 0)
         prefix += to_string(node->item) + " ";
 
@@ -327,15 +399,14 @@ void mineTree_1(TreeNode *node, int min_support, string prefix, ofstream &outfil
         mineTree_1(child, min_support, prefix, outfile);
     }
 
-// cout<<prefix<<" ^ "<<node->count<<endl;
-
     if (node->count > 0)
         processTransaction_1(prefix, node->count, outfile);
 }
 
 void mineTree_2(TreeNode *node, int min_support, string prefix, ofstream &outfile)
 {
-    if(node == nullptr) return;
+    if (node == nullptr)
+        return;
     if (node->item >= 0)
         prefix += to_string(node->item) + " ";
 
@@ -345,8 +416,6 @@ void mineTree_2(TreeNode *node, int min_support, string prefix, ofstream &outfil
         node->cc_count -= child->cc_count;
         mineTree_2(child, min_support, prefix, outfile);
     }
-
-    // cout<<prefix<<" % "<<node->cc_count<<endl;
 
     if (node->cc_count > 0)
         processTransaction_2(prefix, node->cc_count, outfile);
@@ -400,21 +469,24 @@ int decompress(string compressedPath, string outputPath)
             istringstream tokenizer(line);
             string token;
             tokenizer >> token;
-            if(token=="") continue;
+            if (token == "")
+                continue;
             if (stoi(token) == 0)
             {
                 flag = false;
                 tokenizer >> token;
                 numEncodings = stoi(token);
             }
-            else if(token[0]=='0'){
+            else if (token[0] == '0')
+            {
                 int x = 0;
-                while(line[x]!=' ') x++;
+                while (line[x] != ' ')
+                    x++;
                 x++;
-                for(int i=stoi(token); i; i--)
+                for (int i = stoi(token); i; i--)
                     (*transactions).push_back(line.substr(x));
             }
-            else 
+            else
                 (*transactions).push_back(line);
         }
         else
@@ -444,6 +516,7 @@ int decompress(string compressedPath, string outputPath)
     }
     outFile.close();
     delete fileEncoding;
+    delete transactions;
     return 0;
 }
 
@@ -477,88 +550,100 @@ int compress(string dataPath, string outputPath)
 
         transactions->push_back(tokens);
     }
-    int minSupport = 10;
-    cout << "Min Support: " << minSupport<<endl;
+    int minSupport = 20;
+    cout << "Min Support: " << minSupport << endl;
     std::chrono::system_clock::time_point startTime = std::chrono::system_clock::now();
-    TreeNode *root = buildTree(*transactions);
+    TreeNode *root = buildTree(transactions);
     std::chrono::system_clock::time_point endTime = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsedTime = endTime - startTime;
     std::cout << "Time for Build Tree 1: " << elapsedTime.count() << " seconds" << std::endl;
     startTime = std::chrono::system_clock::now();
-    TreeNode *root_copy = buildTree_copy(*transactions);
+    TreeNode *root_copy = buildTree_copy(transactions);
     endTime = std::chrono::system_clock::now();
     elapsedTime = endTime - startTime;
     std::cout << "Time for Build Tree 2: " << elapsedTime.count() << " seconds" << std::endl;
 
     delete transactions;
+
     startTime = std::chrono::system_clock::now();
-    int flag = encodeTree(root, minSupport, "");
+    TreeNode *residualTree1 = new TreeNode(-1, 0);
+    bool flag = encodeTree(root, minSupport, "", residualTree1, true);
+    cout << encoding->size() << endl;
+
+    TreeNode *residualTree2 = new TreeNode(-1, 0);
+    flag = encodeTree(residualTree1, minSupport / 2, "", residualTree2, true);
+    cout << encoding->size() << endl;
+
+    TreeNode *residualTree3 = new TreeNode(-1, 0);
+    flag = encodeTree(residualTree2, minSupport / 4, "", residualTree3, false);
+    cout << encoding->size() << endl;
+
     endTime = std::chrono::system_clock::now();
     elapsedTime = endTime - startTime;
-    std::cout << "Time for Encode Tree 1: " << elapsedTime.count() << " seconds" << std::endl;
-
-    cout<<"Map size before: "<<(*encoding).size()<<endl;
-
+    std::cout << "Time for Encode Tree: " << elapsedTime.count() << " seconds" << std::endl;
     startTime = std::chrono::system_clock::now();
     int flag_copy = encodeTree_copy(root_copy, minSupport, "");
     endTime = std::chrono::system_clock::now();
     elapsedTime = endTime - startTime;
     std::cout << "Time for Encode Tree 2: " << elapsedTime.count() << " seconds" << std::endl;
 
-    cout<<"Map size after: "<<(*encoding).size()<<endl;
-
-    (*encoding_used).resize(-value + 1);
-
+    (*encoding_used).resize((*encoding).size() + 1);
     ofstream outFile(outputPath);
+
     startTime = std::chrono::system_clock::now();
     mineTree_1(root, minSupport, "", outFile);
-    cout<<"mine 1 done\n";
+    // cout << "mine 1 done\n";
     endTime = std::chrono::system_clock::now();
     elapsedTime = endTime - startTime;
     std::cout << "Time for Mine Tree 1: " << elapsedTime.count() << " seconds" << std::endl;
     startTime = std::chrono::system_clock::now();
-    mineTree_2(root, max(5, minSupport/4), "", outFile);
-    cout<<"mine 2 done\n";
+    mineTree_2(root, max(5, minSupport / 4), "", outFile);
+    // cout << "mine 2 done\n";
     endTime = std::chrono::system_clock::now();
     elapsedTime = endTime - startTime;
     std::cout << "Time for Mine Tree 2: " << elapsedTime.count() << " seconds" << std::endl;
     write_mapping(outFile);
     outFile.close();
 
-    cout<<"Compress Done\n";
-
     // Remember to free the allocated memory to avoid memory leaks
     // You can create a function to delete the tree nodes recursively
     delete encoding;
-    // deleteNodes(root);
+    delete encoding_used;
+    deleteNodes(root);
+    deleteNodes(root_copy);
+    deleteNodes(residualTree1);
+    deleteNodes(residualTree2);
 
     return 0;
 }
 
 float compressionRatio(string compressedFile, string originalFile)
 {
-    ifstream cf(compressedFile);
-    ifstream of(originalFile);
     string line;
-    int sizeCf = 0, sizeOf = 0;
-
+    long long sizeCf = 0, sizeOf = 0;
+    ifstream cf(compressedFile);
+    istringstream tokenizer;
     while (getline(cf, line))
     {
-        istringstream tokenizer(line);
+        tokenizer.clear();
+        tokenizer.str(line);
         string token;
         while (tokenizer >> token)
             sizeCf++;
     }
+    cf.close();
+
+    ifstream of(originalFile);
     while (getline(of, line))
     {
-        istringstream tokenizer(line);
+        tokenizer.clear();
+        tokenizer.str(line);
         string token;
         while (tokenizer >> token)
             sizeOf++;
     }
-
-    // cout << "sizeCf = " << sizeCf << endl;
-    // cout << "sizeOf = " << sizeOf << endl;
+    of.close();
+    
     return (float)sizeCf / (float)sizeOf;
 }
 
@@ -569,10 +654,10 @@ int main(int argc, char *argv[])
     dataPath = argv[2];
     outputPath = argv[3];
 
-    if (strcmp(argv[1], "C") == 0)
+    if (string(argv[1]) == "C")
     {
         compress(dataPath, outputPath);
-        cout << "Compression Ratio:\n" << compressionRatio(outputPath, dataPath) << "\n";
+        cout << "Compression Ratio: " << compressionRatio(outputPath, dataPath) << "\n";
     }
     // return compress(dataPath, outputPath);
     else
