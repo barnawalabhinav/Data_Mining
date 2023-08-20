@@ -27,7 +27,7 @@ map<string, int> *encoding = new map<string, int>();
 vector<int> *encoding_used = new vector<int>();
 int value = -2, num_transactions = 0;
 
-int fileSize = 2;    // file size 1 means small and medium files, 0 means large file, 2 for semi-large files
+int fileSize = 1;    // file size 1 means small and medium files, 0 means large file, 2 for semi-large files
 
 TreeNode *buildTree(vector<vector<int>> *transactions)
 {
@@ -562,6 +562,8 @@ int compress(string dataPath, string outputPath)
         cerr << "Failed to open the file." << endl;
         return 1;
     }
+
+    int num_items = 0;
     string line;
     while (getline(inputFile, line))
     {
@@ -571,12 +573,17 @@ int compress(string dataPath, string outputPath)
         string token;
 
         while (tokenizer >> token)
+        {
             tokens.push_back(stoi(token));
+            num_items++;
+        }
 
         transactions->push_back(tokens);
     }
-    int minSupport = 20;
+    int minSupport = 2;
     cout << "Min Support: " << minSupport << endl;
+    cout << "Number of Transactions: " << num_transactions << endl;
+    cout << "Number of Items: " << num_items << endl;
     std::chrono::system_clock::time_point startTime = std::chrono::system_clock::now();
     TreeNode *root = buildTree(transactions);
     std::chrono::system_clock::time_point endTime = std::chrono::system_clock::now();
@@ -629,7 +636,7 @@ int compress(string dataPath, string outputPath)
     elapsedTime = endTime - startTime;
     std::cout << "Time for Encode Tree: " << elapsedTime.count() << " seconds" << std::endl;
 
-    (*encoding_used).resize((*encoding).size() + 1);
+    (*encoding_used).resize(-value + 1);
     ofstream outFile(outputPath);
 
     startTime = std::chrono::system_clock::now();
