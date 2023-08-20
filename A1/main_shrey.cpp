@@ -29,7 +29,7 @@ int value = -2, num_transactions = 0;
 
 int fileSize = 1;    // file size 1 means small and medium files, 0 means large file
 
-TreeNode *buildTree(const vector<vector<int>> *transactions)
+TreeNode *buildTree(vector<vector<int>> *transactions)
 {
     unordered_map<int, long long> *frequency = new unordered_map<int, long long>();
     for (const auto &transaction : *transactions)
@@ -37,8 +37,8 @@ TreeNode *buildTree(const vector<vector<int>> *transactions)
             (*frequency)[item]++;
 
     TreeNode *root = new TreeNode(-1, 0);
-    vector<int> *filteredTransaction;
-    for (auto transaction : *transactions)
+
+    for (auto &transaction : *transactions)
     {
         sort(transaction.begin(), transaction.end(), [&](int a, int b)
              { return (*frequency)[a] > (*frequency)[b] || ((*frequency)[a] == (*frequency)[b] && a < b); });
@@ -65,7 +65,7 @@ TreeNode *buildTree(const vector<vector<int>> *transactions)
     return root;
 }
 
-TreeNode *buildTree_copy(const vector<vector<int>> *transactions)
+TreeNode *buildTree_copy(vector<vector<int>> *transactions)
 {
     unordered_map<int, long long> *frequency = new unordered_map<int, long long>();
     for (const auto &transaction : *transactions)
@@ -73,8 +73,7 @@ TreeNode *buildTree_copy(const vector<vector<int>> *transactions)
             (*frequency)[item]++;
 
     TreeNode *root = new TreeNode(-1, 0);
-    vector<int> *filteredTransaction;
-    for (auto transaction : *transactions)
+    for (auto &transaction : *transactions)
     {
         sort(transaction.begin(), transaction.end(), [&](int a, int b)
              { return (*frequency)[a] < (*frequency)[b] || ((*frequency)[a] == (*frequency)[b] && a > b); });
