@@ -26,35 +26,24 @@ map<string, int> *encoding = new map<string, int>();
 vector<bool> *encoding_used = new vector<bool>();
 int value = -1, num_transactions = 0;
 
-TreeNode *buildTree(const vector<vector<int>> *transactions)
+TreeNode *buildTree(vector<vector<int>> *transactions, int minSupport)
 {
     unordered_map<int, long long> *frequency = new unordered_map<int, long long>();
     for (const auto &transaction : *transactions)
         for (int item : transaction)
             (*frequency)[item]++;
 
-    vector<int> *frequentItems = new vector<int>();
-    for (const auto &entry : (*frequency))
-        (*frequentItems).push_back(entry.first);
-
-    sort((*frequentItems).begin(), (*frequentItems).end(), [&](int a, int b)
-         { return (*frequency)[a] > (*frequency)[b]; });
-
     TreeNode *root = new TreeNode(-1, 0);
-    vector<int> *filteredTransaction;
-    for (const auto &transaction : *transactions)
+    for (auto &transaction : *transactions)
     {
-        filteredTransaction = new vector<int>();
-        for (int item : transaction)
-            if (find((*frequentItems).begin(), (*frequentItems).end(), item) != (*frequentItems).end())
-                (*filteredTransaction).push_back(item);
-
-        sort((*filteredTransaction).begin(), (*filteredTransaction).end(), [&](int a, int b)
-             { return (*frequency)[a] > (*frequency)[b] || ((*frequency)[a] == (*frequency)[b] && a < b); });
+        sort((transaction).begin(), (transaction).end(), [&](int a, int b)
+             { return (*frequency)[a] > (*frequency)[b] || ((*frequency)[a] == (*frequency)[b] && a < b); });       
 
         TreeNode *node = root;
-        for (int item : (*filteredTransaction))
+        for (int item : (transaction))
         {
+            if((*frequency)[item] < minSupport)
+                continue;
             if (node->children.find(item) != node->children.end())
             {
                 node = node->children[item];
@@ -69,9 +58,7 @@ TreeNode *buildTree(const vector<vector<int>> *transactions)
             }
         }
     }
-    delete filteredTransaction;
     delete frequency;
-    delete frequentItems;
     return root;
 }
 
@@ -257,12 +244,13 @@ void processTransaction(string prefix, long long freq, ofstream &outFile)
 
     if (outFile.is_open())
         while (freq--)
+            //cout << ans << "\n";
             outFile << ans << "\n";
     else
         std::cerr << "Failed to open the output file." << std::endl;
 }
 
-void mineTree(TreeNode *node, int min_support, string prefix, ofstream &outfile)
+void mineTree(TreeNode *node, string prefix, ofstream &outfile)
 {
     if (node->item >= 0)
         prefix += to_string(node->item) + " ";
@@ -271,12 +259,26 @@ void mineTree(TreeNode *node, int min_support, string prefix, ofstream &outfile)
     {
         TreeNode *child = childPair.second;
         node->count -= child->count;
-        mineTree(child, min_support, prefix, outfile);
+        mineTree(child, prefix, outfile);
     }
 
     if (node->count > 0)
         processTransaction(prefix, node->count, outfile);
 }
+
+
+void mineTransactions(vector<vector<int>> *transactions, ofstream &outfile)
+{
+    for (auto transaction : *transactions)
+    {
+        string txn; //(transaction.begin(), transaction.end());
+        for (auto item : transaction)
+            txn += to_string(item) + " ";
+        //cout << txn << endl;
+        processTransaction(txn, 1, outfile);
+    }
+}
+
 
 void printTree(TreeNode *node, int level)
 {
@@ -373,6 +375,18 @@ void deleteNodes(TreeNode *node)
     delete node;
 }
 
+int getMinSupport(vector<vector<int>> *transactions)
+{
+    int minSupport = 40;
+    
+    if(transactions)
+    {
+        minSupport = 0.1 * (*transactions).size();
+    }
+
+    return minSupport;
+}
+
 int compress(string dataPath, string outputPath)
 {
     vector<vector<int>> *transactions = new vector<vector<int>>();
@@ -396,15 +410,15 @@ int compress(string dataPath, string outputPath)
 
         transactions->push_back(tokens);
     }
-    int minSupport = 40;
+    int minSupport = 20; // getMinSupport(transactions);
     cout << "Min Support: " << minSupport << endl;
     std::chrono::system_clock::time_point startTime = std::chrono::system_clock::now();
-    TreeNode *root = buildTree(transactions);
+    TreeNode *root = buildTree(transactions, minSupport);
     std::chrono::system_clock::time_point endTime = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsedTime = endTime - startTime;
     std::cout << "Time for Build Tree: " << elapsedTime.count() << " seconds" << std::endl;
     // printTree(root, 0);
-    delete transactions;
+    //delete transactions;
 
     startTime = std::chrono::system_clock::now();
     TreeNode *residualTree1 = new TreeNode(-1, 0);
@@ -427,7 +441,8 @@ int compress(string dataPath, string outputPath)
     ofstream outFile(outputPath);
 
     startTime = std::chrono::system_clock::now();
-    mineTree(root, minSupport, "", outFile);
+    //mineTree(root, "", outFile);
+    mineTransactions(transactions, outFile);
     endTime = std::chrono::system_clock::now();
     elapsedTime = endTime - startTime;
     std::cout << "Time for Mine Tree: " << elapsedTime.count() << " seconds" << std::endl;
