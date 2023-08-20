@@ -560,10 +560,9 @@ int compress(string dataPath, string outputPath)
     double fileSizeMB = static_cast<double>(file_size) / (1024 * 1024); // Convert to MB
     std::cout << "File size: " << fileSizeMB << " MB" << std::endl;
 
-    // some rough numbers
-    if(fileSizeMB > 200)
+    if(fileSizeMB > 600)
         fileSize = 0;
-    else if(fileSizeMB > 70)
+    else if(fileSizeMB > 40)
         fileSize = 2;
     else 
         fileSize = 1;
@@ -591,6 +590,8 @@ int compress(string dataPath, string outputPath)
         transactions->push_back(tokens);
     }
     int minSupport = 20;
+    if(fileSize == 1) 
+        minSupport = 15;
     cout << "Min Support: " << minSupport << endl;
     cout << "fileSize : " << fileSize << endl;
     std::chrono::system_clock::time_point startTime = std::chrono::system_clock::now();
