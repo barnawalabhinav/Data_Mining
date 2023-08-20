@@ -25,7 +25,7 @@ public:
 
 map<string, int> *encoding = new map<string, int>();
 vector<int> *encoding_used = new vector<int>();
-int value = -1, num_transactions = 0;
+int value = -2, num_transactions = 0;
 
 TreeNode *buildTree(const vector<vector<int>> *transactions)
 {
@@ -212,7 +212,7 @@ void write_mapping(ofstream &outFile)
     for (auto e : (*encoding_used))
         if (e)
             size++;
-    outFile << "0 " << size << endl;
+    outFile << "-1 " << size << endl;
 
     for (auto e : (*encoding))
         if ((*encoding_used)[-e.second] > 1)
@@ -471,7 +471,7 @@ int decompress(string compressedPath, string outputPath)
             tokenizer >> token;
             if (token == "")
                 continue;
-            if (stoi(token) == 0)
+            if (stoi(token) == -1)
             {
                 flag = false;
                 tokenizer >> token;
