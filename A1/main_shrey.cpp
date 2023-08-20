@@ -575,8 +575,9 @@ int compress(string dataPath, string outputPath)
 
         transactions->push_back(tokens);
     }
-    int minSupport = 20;
+    int minSupport = 15;
     cout << "Min Support: " << minSupport << endl;
+    cout << "fileSize : " << fileSize << endl;
     std::chrono::system_clock::time_point startTime = std::chrono::system_clock::now();
     TreeNode *root = buildTree(transactions);
     std::chrono::system_clock::time_point endTime = std::chrono::system_clock::now();
@@ -629,7 +630,7 @@ int compress(string dataPath, string outputPath)
     elapsedTime = endTime - startTime;
     std::cout << "Time for Encode Tree: " << elapsedTime.count() << " seconds" << std::endl;
 
-    (*encoding_used).resize((*encoding).size() + 1);
+    (*encoding_used).resize(-value + 1);
     ofstream outFile(outputPath);
 
     startTime = std::chrono::system_clock::now();
