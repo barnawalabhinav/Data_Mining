@@ -582,6 +582,7 @@ int compress(string dataPath, string outputPath)
     }
     int minSupport = 2;
     cout << "Min Support: " << minSupport << endl;
+    cout << "fileSize : " << fileSize << endl;
     cout << "Number of Transactions: " << num_transactions << endl;
     cout << "Number of Items: " << num_items << endl;
     std::chrono::system_clock::time_point startTime = std::chrono::system_clock::now();
