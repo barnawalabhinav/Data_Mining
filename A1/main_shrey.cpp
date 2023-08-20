@@ -27,6 +27,8 @@ map<string, int> *encoding = new map<string, int>();
 vector<int> *encoding_used = new vector<int>();
 int value = -2, num_transactions = 0;
 
+int fileSize = 1;    // file size 1 means small and medium files, 0 means large file
+
 TreeNode *buildTree(const vector<vector<int>> *transactions)
 {
     unordered_map<int, long long> *frequency = new unordered_map<int, long long>();
@@ -34,27 +36,15 @@ TreeNode *buildTree(const vector<vector<int>> *transactions)
         for (int item : transaction)
             (*frequency)[item]++;
 
-    vector<int> *frequentItems = new vector<int>();
-    for (const auto &entry : (*frequency))
-        (*frequentItems).push_back(entry.first);
-
-    sort((*frequentItems).begin(), (*frequentItems).end(), [&](int a, int b)
-         { return (*frequency)[a] > (*frequency)[b]; });
-
     TreeNode *root = new TreeNode(-1, 0);
     vector<int> *filteredTransaction;
-    for (const auto &transaction : *transactions)
+    for (auto transaction : *transactions)
     {
-        filteredTransaction = new vector<int>();
-        for (int item : transaction)
-            if (find((*frequentItems).begin(), (*frequentItems).end(), item) != (*frequentItems).end())
-                (*filteredTransaction).push_back(item);
-
-        sort((*filteredTransaction).begin(), (*filteredTransaction).end(), [&](int a, int b)
+        sort(transaction.begin(), transaction.end(), [&](int a, int b)
              { return (*frequency)[a] > (*frequency)[b] || ((*frequency)[a] == (*frequency)[b] && a < b); });
 
         TreeNode *node = root;
-        for (int item : (*filteredTransaction))
+        for (int item : transaction)
         {
             if (node->children.find(item) != node->children.end())
             {
@@ -71,9 +61,7 @@ TreeNode *buildTree(const vector<vector<int>> *transactions)
             }
         }
     }
-    delete filteredTransaction;
     delete frequency;
-    delete frequentItems;
     return root;
 }
 
@@ -84,27 +72,15 @@ TreeNode *buildTree_copy(const vector<vector<int>> *transactions)
         for (int item : transaction)
             (*frequency)[item]++;
 
-    vector<int> *frequentItems = new vector<int>();
-    for (const auto &entry : (*frequency))
-        (*frequentItems).push_back(entry.first);
-
-    sort((*frequentItems).begin(), (*frequentItems).end(), [&](int a, int b)
-         { return (*frequency)[a] < (*frequency)[b]; });
-
     TreeNode *root = new TreeNode(-1, 0);
     vector<int> *filteredTransaction;
-    for (const auto &transaction : *transactions)
+    for (auto transaction : *transactions)
     {
-        filteredTransaction = new vector<int>();
-        for (int item : transaction)
-            if (find((*frequentItems).begin(), (*frequentItems).end(), item) != (*frequentItems).end())
-                (*filteredTransaction).push_back(item);
-
-        sort((*filteredTransaction).begin(), (*filteredTransaction).end(), [&](int a, int b)
+        sort(transaction.begin(), transaction.end(), [&](int a, int b)
              { return (*frequency)[a] < (*frequency)[b] || ((*frequency)[a] == (*frequency)[b] && a > b); });
 
         TreeNode *node = root;
-        for (int item : (*filteredTransaction))
+        for (int item : transaction)
         {
             if (node->children.find(item) != node->children.end())
             {
@@ -121,9 +97,7 @@ TreeNode *buildTree_copy(const vector<vector<int>> *transactions)
             }
         }
     }
-    delete filteredTransaction;
     delete frequency;
-    delete frequentItems;
     return root;
 }
 
@@ -385,7 +359,7 @@ void processTransaction_2(string prefix, long long freq, ofstream &outFile)
         std::cerr << "Failed to open the output file." << std::endl;
 }
 
-void mineTree_1(TreeNode *node, int min_support, string prefix, ofstream &outfile)
+void mineTree_1(TreeNode *node, string prefix, ofstream &outfile)
 {
     if (node == nullptr)
         return;
@@ -396,14 +370,14 @@ void mineTree_1(TreeNode *node, int min_support, string prefix, ofstream &outfil
     {
         TreeNode *child = childPair.second;
         node->count -= child->count;
-        mineTree_1(child, min_support, prefix, outfile);
+        mineTree_1(child, prefix, outfile);
     }
 
     if (node->count > 0)
         processTransaction_1(prefix, node->count, outfile);
 }
 
-void mineTree_2(TreeNode *node, int min_support, string prefix, ofstream &outfile)
+void mineTree_2(TreeNode *node, string prefix, ofstream &outfile)
 {
     if (node == nullptr)
         return;
@@ -414,7 +388,7 @@ void mineTree_2(TreeNode *node, int min_support, string prefix, ofstream &outfil
     {
         TreeNode *child = childPair.second;
         node->cc_count -= child->cc_count;
-        mineTree_2(child, min_support, prefix, outfile);
+        mineTree_2(child, prefix, outfile);
     }
 
     if (node->cc_count > 0)
@@ -557,51 +531,68 @@ int compress(string dataPath, string outputPath)
     std::chrono::system_clock::time_point endTime = std::chrono::system_clock::now();
     std::chrono::duration<double> elapsedTime = endTime - startTime;
     std::cout << "Time for Build Tree 1: " << elapsedTime.count() << " seconds" << std::endl;
-    startTime = std::chrono::system_clock::now();
-    TreeNode *root_copy = buildTree_copy(transactions);
-    endTime = std::chrono::system_clock::now();
-    elapsedTime = endTime - startTime;
-    std::cout << "Time for Build Tree 2: " << elapsedTime.count() << " seconds" << std::endl;
+
+    if(fileSize == 1)
+    {
+        startTime = std::chrono::system_clock::now();
+        TreeNode *root_copy = buildTree_copy(transactions);
+        endTime = std::chrono::system_clock::now();
+        elapsedTime = endTime - startTime;
+        std::cout << "Time for Build Tree 2: " << elapsedTime.count() << " seconds" << std::endl;
+
+        startTime = std::chrono::system_clock::now();
+        int flag_copy = encodeTree_copy(root_copy, max(5, minSupport / 4), "");
+        endTime = std::chrono::system_clock::now();
+        elapsedTime = endTime - startTime;
+        std::cout << "Time for Encode Tree 2: " << elapsedTime.count() << " seconds" << std::endl;
+
+        deleteNodes(root_copy);
+    }
 
     delete transactions;
 
     startTime = std::chrono::system_clock::now();
-    TreeNode *residualTree1 = new TreeNode(-1, 0);
-    bool flag = encodeTree(root, minSupport, "", residualTree1, true);
-    cout << encoding->size() << endl;
+    if(fileSize==1)
+    {
+        TreeNode *residualTree1 = new TreeNode(-1, 0);
+        bool flag = encodeTree(root, minSupport, "", residualTree1, true);
+        cout << encoding->size() << endl;
+        
+        TreeNode *residualTree2 = new TreeNode(-1, 0);
+        flag = encodeTree(residualTree1, minSupport / 2, "", residualTree2, true);
+        cout << encoding->size() << endl;
 
-    TreeNode *residualTree2 = new TreeNode(-1, 0);
-    flag = encodeTree(residualTree1, minSupport / 2, "", residualTree2, true);
-    cout << encoding->size() << endl;
+        TreeNode *residualTree3 = new TreeNode(-1, 0);
+        flag = encodeTree(residualTree2, minSupport / 4, "", residualTree3, false);
+        cout << encoding->size() << endl;
 
-    TreeNode *residualTree3 = new TreeNode(-1, 0);
-    flag = encodeTree(residualTree2, minSupport / 4, "", residualTree3, false);
-    cout << encoding->size() << endl;
-
+        deleteNodes(residualTree1);
+        deleteNodes(residualTree2);
+    }
+    else{
+        TreeNode *residualTree1 = new TreeNode(-1, 0);
+        bool flag = encodeTree(root, minSupport, "", residualTree1, false);
+        cout << encoding->size() << endl;
+    }
     endTime = std::chrono::system_clock::now();
     elapsedTime = endTime - startTime;
     std::cout << "Time for Encode Tree: " << elapsedTime.count() << " seconds" << std::endl;
-    startTime = std::chrono::system_clock::now();
-    int flag_copy = encodeTree_copy(root_copy, minSupport, "");
-    endTime = std::chrono::system_clock::now();
-    elapsedTime = endTime - startTime;
-    std::cout << "Time for Encode Tree 2: " << elapsedTime.count() << " seconds" << std::endl;
 
     (*encoding_used).resize((*encoding).size() + 1);
     ofstream outFile(outputPath);
 
     startTime = std::chrono::system_clock::now();
-    mineTree_1(root, minSupport, "", outFile);
-    // cout << "mine 1 done\n";
+    mineTree_1(root, "", outFile);
     endTime = std::chrono::system_clock::now();
     elapsedTime = endTime - startTime;
     std::cout << "Time for Mine Tree 1: " << elapsedTime.count() << " seconds" << std::endl;
+
     startTime = std::chrono::system_clock::now();
-    mineTree_2(root, max(5, minSupport / 4), "", outFile);
-    // cout << "mine 2 done\n";
+    mineTree_2(root, "", outFile);
     endTime = std::chrono::system_clock::now();
     elapsedTime = endTime - startTime;
     std::cout << "Time for Mine Tree 2: " << elapsedTime.count() << " seconds" << std::endl;
+
     write_mapping(outFile);
     outFile.close();
 
@@ -610,9 +601,6 @@ int compress(string dataPath, string outputPath)
     delete encoding;
     delete encoding_used;
     deleteNodes(root);
-    deleteNodes(root_copy);
-    deleteNodes(residualTree1);
-    deleteNodes(residualTree2);
 
     return 0;
 }
