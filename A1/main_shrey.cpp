@@ -27,7 +27,7 @@ map<string, int> *encoding = new map<string, int>();
 vector<int> *encoding_used = new vector<int>();
 int value = -2, num_transactions = 0;
 
-int fileSize = 1;    // file size 1 means small and medium files, 0 means large file
+int fileSize = 2;    // file size 1 means small and medium files, 0 means large file, 2 for semi-large files
 
 TreeNode *buildTree(vector<vector<int>> *transactions)
 {
@@ -187,14 +187,61 @@ void write_mapping(ofstream &outFile)
             size++;
     outFile << "-1 " << size << endl;
 
-    for (auto e : (*encoding))
-        if ((*encoding_used)[-e.second] > 1)
-        {
-            if (count(e.first.begin(), e.first.end(), ' ') == 1 and (*encoding_used)[-e.second] == 2)
-                continue;
-            outFile << e.second << "\n"
-                    << e.first << endl;
+    for (auto e : (*encoding)){
+        if(fileSize == 1){
+            if ((*encoding_used)[-e.second] > 1)
+            {
+                if (count(e.first.begin(), e.first.end(), ' ') == 1 and (*encoding_used)[-e.second] == 2)
+                    continue;
+                outFile << e.second << "\n"
+                        << e.first << endl;
+            }
         }
+        else{
+            outFile << e.second << "\n"
+                        << e.first << endl;
+        }
+    }
+}
+
+// uses O(n) greedy algo
+void processTransaction_Big_files(string prefix, long long freq, ofstream &outFile)
+{
+    string ans = "";
+    if (freq > 1)
+        ans = "0" + to_string(freq);
+
+    int l = 0, r = prefix.size() - 1;
+    while (l < r)
+    {
+        string temp = prefix.substr(l, r - l + 1);
+        if ((*encoding).find(temp) != (*encoding).end())
+        {
+            (*encoding_used)[-(*encoding)[temp]] = true;
+
+            if (ans == "")
+                ans = to_string((*encoding)[temp]);
+            else
+                ans += " " + to_string((*encoding)[temp]);
+            l = r + 1;
+            r = prefix.size() - 1;
+            continue;
+        }
+        r--;
+        while (r > l && prefix[r] != ' ')
+            r--;
+        // cout << ans << ",\n";
+    }
+    if (l < prefix.size() - 1)
+        if (ans == "")
+            ans = prefix.substr(l, prefix.size() - l - 1);
+        else
+            ans += " " + prefix.substr(l, prefix.size() - l - 1);
+
+    if (outFile.is_open())
+        outFile << ans << "\n";
+    else
+        std::cerr << "Failed to open the output file." << std::endl;
 }
 
 void processTransaction_1(string prefix, long long freq, ofstream &outFile)
@@ -372,8 +419,13 @@ void mineTree_1(TreeNode *node, string prefix, ofstream &outfile)
         mineTree_1(child, prefix, outfile);
     }
 
-    if (node->count > 0)
-        processTransaction_1(prefix, node->count, outfile);
+    if (node->count > 0){
+        if(fileSize == 1)
+            processTransaction_1(prefix, node->count, outfile);
+        else 
+            processTransaction_Big_files(prefix, node->count, outfile);
+    }
+
 }
 
 void mineTree_2(TreeNode *node, string prefix, ofstream &outfile)
@@ -551,7 +603,7 @@ int compress(string dataPath, string outputPath)
     delete transactions;
 
     startTime = std::chrono::system_clock::now();
-    if(fileSize==1)
+    if(fileSize >= 1)
     {
         TreeNode *residualTree1 = new TreeNode(-1, 0);
         bool flag = encodeTree(root, minSupport, "", residualTree1, true);
@@ -586,11 +638,14 @@ int compress(string dataPath, string outputPath)
     elapsedTime = endTime - startTime;
     std::cout << "Time for Mine Tree 1: " << elapsedTime.count() << " seconds" << std::endl;
 
-    startTime = std::chrono::system_clock::now();
-    mineTree_2(root, "", outFile);
-    endTime = std::chrono::system_clock::now();
-    elapsedTime = endTime - startTime;
-    std::cout << "Time for Mine Tree 2: " << elapsedTime.count() << " seconds" << std::endl;
+    if(fileSize == 1)
+    {
+        startTime = std::chrono::system_clock::now();
+        mineTree_2(root, "", outFile);
+        endTime = std::chrono::system_clock::now();
+        elapsedTime = endTime - startTime;
+        std::cout << "Time for Mine Tree 2: " << elapsedTime.count() << " seconds" << std::endl;
+    }
 
     write_mapping(outFile);
     outFile.close();
