@@ -50,7 +50,7 @@ def elbow_plot(dataset, dimension, plot_name):
     plt.legend()
 
     plt.savefig(f"{plot_name}.png")
-    plt.show()
+    # plt.show()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
