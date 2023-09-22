@@ -3,7 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
-import argparse
+import sys
 
 def cal_sqrd_dist(dataset, labels, centroids):
     sqrd_dist = 0
@@ -50,18 +50,12 @@ def elbow_plot(dataset, dimension, plot_name):
     plt.legend()
 
     plt.savefig(f"{plot_name}.png")
-    # plt.show()
+    plt.show()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("dataset")
-    parser.add_argument("dimension", type=int)
-    parser.add_argument("plot_name")
-
-    args = parser.parse_args()
-    file_path = args.dataset
-    dimension = args.dimension
-    plot_name = args.plot_name
+    file_path = sys.argv[1]
+    dimension = int(sys.argv[2])
+    plot_name = sys.argv[3]
 
     with open(file_path, 'r') as file:
         lines = file.readlines()
