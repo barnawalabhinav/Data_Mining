@@ -49,8 +49,8 @@ def elbow_plot(dataset, dimension, plot_name):
     plt.axvline(x=final_k, color='r', linestyle='--', label=f'Optimal k = {final_k}')
     plt.legend()
 
-    plt.savefig(f"{plot_name}.png")
-    plt.show()
+    plt.savefig(plot_name)
+    # plt.show()
 
 if __name__ == "__main__":
     file_path = sys.argv[1]
