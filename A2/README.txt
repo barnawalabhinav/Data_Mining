@@ -3,6 +3,11 @@ Created By - Abhinav Barnawal (2020CS50415),
              Shreyansh Singh (2020CS10385),
              Si Siddhanth Raja (2020CS50443)
 
+Contributions:
+    Abhinav Barnawal(2020CS50415) : 33.34%
+    Shreyansh Singh(2020CS10385)  : 33.33%
+    Si Siddhanth Raja(2020CS50443) : 33.33%             
+
 # Question 1
 
 (i) Bundled Files in the directory Q1:
