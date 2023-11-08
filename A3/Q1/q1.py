@@ -22,21 +22,21 @@ def analyze():
         sum_ratio = 0
         for pt in query_pts:
             dist = np.sum(np.abs(data_pts - pt), axis=1)
-            sum_ratio = np.max(dist) / np.min(dist[dist != 0])
+            sum_ratio += np.max(dist) / np.min(dist[dist != 0])
         L1_ratio.append(sum_ratio / len(query_pts))
 
         # Using L2 distance
         sum_ratio = 0
         for pt in query_pts:
             dist = np.sqrt(np.sum(np.square(data_pts - pt), axis=1))
-            sum_ratio = np.max(dist) / np.min(dist[dist != 0])
+            sum_ratio += np.max(dist) / np.min(dist[dist != 0])
         L2_ratio.append(sum_ratio / len(query_pts))
 
         # Using L_inf distance
         sum_ratio = 0
         for pt in query_pts:
             dist = np.max(np.abs(data_pts - pt), axis=1)
-            sum_ratio = np.max(dist) / np.min(dist[dist != 0])
+            sum_ratio += np.max(dist) / np.min(dist[dist != 0])
         L_inf_ratio.append(sum_ratio / len(query_pts))
 
         print(f"Finished analyzing dimension {dim}")
