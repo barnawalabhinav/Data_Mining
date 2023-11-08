@@ -73,22 +73,43 @@ class Random_Classifier(torch.nn.Module):
 # class Linear_Regression(torch.nn.Module):
 
 
+class CustomLayer(torch.nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(CustomLayer, self).__init__()
+        self.weight = torch.nn.Parameter(torch.randn(input_dim, output_dim))
+        self.bias = torch.nn.Parameter(torch.zeros(output_dim))
+
+    def forward(self, x):
+        # Implement the layer's forward pass
+        out = torch.matmul(x, self.weight) + self.bias
+        return out
+
+    def backward(self, grad_output):
+        # Implement the backward pass (gradients)
+        grad_input = torch.matmul(grad_output, self.weight.t())  # Gradients w.r.t. input
+        grad_weight = torch.matmul(self.input_data.t(), grad_output)  # Gradients w.r.t. weight
+        grad_bias = torch.sum(grad_output, dim=0)  # Gradients w.r.t. bias
+        return grad_input, grad_weight, grad_bias
+
+
 class GCN(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
         super().__init__()
         self.conv1 = GCNConv(in_channels, hidden_channels)
         self.conv2 = GCNConv(hidden_channels, hidden_channels)
-        self.pool = torch.nn.AdaptiveAvgPool1d(1)  # Pooling layer to aggregate node features
-        self.fc = torch.nn.Linear(hidden_channels, out_channels)
+        # self.pool = torch.nn.AdaptiveAvgPool1d(1)  # Pooling layer to aggregate node features
+        # self.fc = torch.nn.Linear(hidden_channels, out_channels)
 
-    def forward(self, x: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
-        x = self.conv1(x, edge_index)
-        x = F.relu(x)
-        x = self.conv2(x, edge_index)
-        x = F.relu(x)
+    def forward(self, batch) -> torch.Tensor:
+        data = batch
+        data.x = self.conv1(data.x, data.edge_index)
+        data.x = F.relu(data.x)
+        data.x = self.conv2(data.x, data.edge_index)
+        # x = F.relu(x)
         # x = self.pool(x.transpose(1, 2)).squeeze(2)
-        x = self.fc(x)
-        return F.log_softmax(x, dim=1)
+        # x = self.fc(x)
+        # return F.log_softmax(x, dim=1)
+        return data
 
 
 def custom_collate(batch):
@@ -114,9 +135,12 @@ class_model = GCN(in_channels=dataset.num_features, hidden_channels=32, out_chan
 optimizer = torch.optim.Adam(class_model.parameters(), lr=0.01, weight_decay=5e-4)
 
 for epoch in range(NUM_EPOCHS):
-    for data in dataloader:
-        output = class_model(data.x, data.edge_index)
-        loss = F.cross_entropy(output, data.y)
+    for batch in dataloader:
+        output = class_model(batch)
+        print(output)
+        ans_val = torch.rand((322, 32))
+        loss = F.cross_entropy(output.x, ans_val)
+        # loss = np.random.randint(0, 1, (322, 32))
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()

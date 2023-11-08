@@ -114,6 +114,7 @@ class_model = GCN(in_channels=dataset.num_features, hidden_channels=32, out_chan
 optimizer = torch.optim.Adam(class_model.parameters(), lr=0.01, weight_decay=5e-4)
 
 for epoch in range(NUM_EPOCHS):
+    total_loss = 0
     for data in dataloader:
         output = class_model(data.x, data.edge_index)
         loss = F.cross_entropy(output, data.y)
@@ -121,7 +122,9 @@ for epoch in range(NUM_EPOCHS):
         loss.backward()
         optimizer.step()
 
-    print(f'Epoch: {epoch:03d}, Loss: {loss:.4f}')
+        total_loss += loss.item()
+
+    print(f'Epoch: {epoch:03d}, Loss: {total_loss:.4f}')
 
 # random_model = Random_Classifier(num_classes=dataset.num_classes)
 
