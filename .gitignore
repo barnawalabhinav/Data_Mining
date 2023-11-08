@@ -1,5 +1,5 @@
 *.o
 *.out
 *.zip
-A1/A1_datasets/*
+*dataset*
 *.txt
