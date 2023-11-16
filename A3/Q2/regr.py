@@ -12,7 +12,6 @@ from torch_geometric.loader import DataLoader
 from encoder import *
 
 DATA_DIR = "../dataset/dataset_2/train/"
-CLASS_OR_REGR = "class"
 BATCH_SIZE = 32
 NUM_EPOCHS = 200
 
@@ -46,11 +45,6 @@ for i in range(NUM_GRAPHS):
     node_features = torch.tensor(node_features_df.iloc[nodes_done-num_nodes:nodes_done, :].values, dtype=torch.float)
     edges = torch.tensor(edges_df.iloc[edges_done-num_edges:edges_done, :].values)
     edge_features = torch.tensor(edge_features_df.iloc[edges_done-num_edges:edges_done, :].values, dtype=torch.float)
-
-    # print(f"num nodes {num_nodes} num edges {num_edges}")
-    # print("node features", node_features.shape, node_features)
-    # print("edges", edges.shape, edges)
-    # break
     
     # # Initialize a list to hold the combined edge features for each node
     # combined_edge_features = [torch.empty((0, edge_features.shape[1])) for _ in range(num_nodes)]
@@ -66,10 +60,7 @@ for i in range(NUM_GRAPHS):
     #     node_features[node] = torch.cat((node_features[node], edge_encoding.mean(dim=0)))
         
     data = Data(x=node_features, edge_index=edges.t().contiguous(), edge_attr=edge_features)
-    if CLASS_OR_REGR == "class":
-        data.y = torch.tensor([graph_labels_df.iloc[i, 0]], dtype=torch.float)  # Set the label
-    else:
-        data.y = torch.tensor([graph_labels_df.iloc[i, 0]], dtype=torch.double)  # Set the label
+    data.y = torch.tensor([graph_labels_df.iloc[i, 0]], dtype=torch.double)  # Set the label
     data_list.append(data)
 
 
@@ -85,46 +76,38 @@ class CustomDataset(Dataset):
         return self.data_list[idx]
 
 
-class Random_Classifier(torch.nn.Module):
+class Random_Regressor(torch.nn.Module):
     def __init__(self, num_classes):
         super().__init__()
-        self.num_classes = num_classes
 
-    def forward(self, x: torch.Tensor, length) -> torch.Tensor:
-        return torch.randint(0, self.num_classes, (length,), dtype=torch.float)
+    def forward(self, data) -> torch.Tensor:
+        return torch.rand(0, (len(data),), dtype=torch.double)
+
 
 # class Linear_Regression(torch.nn.Module):
 
 
-class GCN(torch.nn.Module):
+class GNN(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
-        super(GCN, self).__init__()
-        # self.conv1 = SAGEConv(in_channels, hidden_channels)
-        # self.conv2 = SAGEConv(hidden_channels, hidden_channels)
-        self.conv1 = GINEConv(torch.nn.Sequential(torch.nn.Linear(in_channels, hidden_channels), torch.nn.ReLU(), torch.nn.Linear(hidden_channels, hidden_channels)), edge_dim=3)
-        self.conv2 = GINEConv(torch.nn.Sequential(torch.nn.Linear(hidden_channels, hidden_channels), torch.nn.ReLU(), torch.nn.Linear(hidden_channels, hidden_channels)), edge_dim=3)
-        self.hidden_layer = torch.nn.Linear(hidden_channels, hidden_channels)
+        super(GNN, self).__init__()
+        self.conv1 = GINEConv(in_channels, hidden_channels)
+        self.conv2 = GINEConv(hidden_channels, hidden_channels)
         self.classifier = torch.nn.Linear(hidden_channels, out_channels)
         
         torch.nn.init.xavier_normal_(self.classifier.weight)
         torch.nn.init.constant_(self.classifier.bias, 0.1)
 
     def forward(self, data) -> torch.Tensor:
-        x = self.conv1(data.x, data.edge_index, data.edge_attr)
-        x = F.relu(x)
-        x = self.conv2(x, data.edge_index, data.edge_attr)
-        x = F.relu(x)
-        x = global_add_pool(x, data.batch)
-        x = F.relu(x)
+        data.x = self.conv1(data.x, data.edge_index)
+        data.x = F.relu(data.x)
+        data.x = self.conv2(data.x, data.edge_index)
+        data.x = F.relu(data.x)
+        x = global_add_pool(data.x, data.batch)
 
         # Final classifier
         # x = F.dropout(x, p=0.5, training=self.training)
-        # x = self.hidden_layer(x)
-        # x = F.relu(x)
-        # x = self.hidden_layer(x)
-        # x = F.relu(x)
         x = self.classifier(x)
-        x = F.sigmoid(x)
+        x = torch.sigmoid(x)
 
         # x = F.log_softmax(x, dim=1)
 
@@ -149,7 +132,7 @@ for data in dataloader:
 
 '''
 
-class_model = GCN(in_channels=dataset.num_features, hidden_channels=32, out_channels=1)
+class_model = GNN(in_channels=dataset.num_features, hidden_channels=32, out_channels=1)
 optimizer = torch.optim.Adam(class_model.parameters(), lr=0.01, weight_decay=1e-3)
 # optimizer = torch.optim.Adam(class_model.parameters(), lr=0.001)
 # criterion = torch.nn.CrossEntropyLoss()
@@ -157,25 +140,13 @@ criterion = torch.nn.BCELoss()
 # criterion = torch.nn.BCEWithLogitsLoss()
 
 for epoch in range(NUM_EPOCHS):
-    total_loss = 0
-    correct_output = 0
-    num_batches = 0
     for batch in dataloader:
         optimizer.zero_grad()
         output = class_model(batch).squeeze(dim=1)
-        labels = torch.where(output < 0.5, torch.tensor(0.0), torch.tensor(1.0))
         # gold = F.one_hot(batch.y, num_classes=2).to(dtype=torch.float)
         loss = criterion(output, batch.y)
         loss.backward()
         optimizer.step()
-
-        total_loss += loss
-        num_batches += 1
-        correct_output += torch.sum(batch.y == labels).item()
-        # print(batch.y)
-        # print(output)
-        # print(labels)
-        # print("%%%%%%%%%%%%%%%%%%%%")
     
     # for param in class_model.parameters():
     #     print(param.grad.data.norm(2).item())
@@ -184,22 +155,17 @@ for epoch in range(NUM_EPOCHS):
         # print(f"loss {loss:.3f}")
 
     if epoch % 1 == 0:
-        print(f'Epoch: {epoch:03d}, Loss: {total_loss/num_batches:.4f}, Accuracy: {correct_output / NUM_GRAPHS * 100 :.2f}')
+        print(f'Epoch: {epoch:03d}, Loss: {loss:.4f}')
 
-random_model = Random_Classifier(num_classes=dataset.num_classes)
+random_model = Random_Regressor()
 
 correct_output = 0
-total_loss = 0
-for batch in dataloader:
-    predicted_output = random_model.forward(batch.x, length=len(batch.y))
-    # # print(predicted_output)
-    # # print(batch.y)
-    loss = criterion(predicted_output, batch.y)
-    total_loss += loss
-    correct_output += torch.sum(batch.y == predicted_output).item()
+for data in dataloader:
+    predicted_output = random_model.forward(data.x, length=len(data.y))
+    correct_output += torch.sum(data.y == predicted_output).item()
 
 print(f"Random Accuracy: {correct_output / NUM_GRAPHS * 100 :.2f}")
-print(f"Random BCE Loss {total_loss/num_batches}")
+# print(f"BCE Loss {torch.nn.BCELoss()}")
 
 
 # torch.save(class_model.state_dict(), "q2_class_model.pt")

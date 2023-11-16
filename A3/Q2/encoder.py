@@ -21,8 +21,15 @@ class NodeEncoder(torch.nn.Module):
 
     def forward(self, x):
         x_embedding = 0
+        # for i in range(x.shape[1]):
+        #     x_embedding += self.node_embedding_list[i](x[:,i])
+
+        l = []
         for i in range(x.shape[1]):
-            x_embedding += self.node_embedding_list[i](x[:,i])
+            l.append(self.node_embedding_list[i](x[:,i]))
+
+        x_embedding = torch.cat(l)        
+
         return x_embedding
 
 
@@ -38,6 +45,12 @@ class EdgeEncoder(torch.nn.Module):
 
     def forward(self, edge_attr):
         edge_embedding = 0
+        # for i in range(edge_attr.shape[1]):
+        #     edge_embedding += self.edge_embedding_list[i](edge_attr[:,i])
+
+        l = []
         for i in range(edge_attr.shape[1]):
-            edge_embedding += self.edge_embedding_list[i](edge_attr[:,i])
+            l.append(self.edge_embedding_list[i](edge_attr[:,i]))
+
+        edge_embedding = torch.cat(l)            
         return edge_embedding
