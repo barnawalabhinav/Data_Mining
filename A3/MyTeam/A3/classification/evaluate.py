@@ -4,8 +4,7 @@ import argparse
 import numpy as np
 import pandas as pd
 
-from train import Random_Classifier, Logistic_Regressor, Custom_Classifier
-from train import load_data
+from models import Random_Classifier, Logistic_Regressor, Custom_Classifier, load_data
 
 
 def tocsv(y_arr, *, task):
