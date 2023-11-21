@@ -13,8 +13,8 @@ def analyze():
     L_inf_ratio = []
 
     for dim in DIMS:
-        data_pts = np.unique(np.trunc(np.random.default_rng().uniform(
-            0, 1, (NUM_PTS, dim)) * PRECISION) / PRECISION, axis=0)
+        # data_pts = np.unique(np.trunc(np.random.default_rng().uniform(0, 1, (NUM_PTS, dim)) * PRECISION) / PRECISION, axis=0)
+        data_pts = np.random.default_rng().uniform(0, 1, (NUM_PTS, dim))
         query_idx = np.random.choice(data_pts.shape[0], 100, replace=False)
         query_pts = data_pts[query_idx]
 
@@ -23,21 +23,27 @@ def analyze():
         for pt in query_pts:
             dist = np.sum(np.abs(data_pts - pt), axis=1)
             sum_ratio += np.max(dist) / np.min(dist[dist != 0])
-        L1_ratio.append(sum_ratio / len(query_pts))
+        ratio = sum_ratio / len(query_pts)
+        ratio = np.trunc(ratio * PRECISION) / PRECISION
+        L1_ratio.append(ratio)
 
         # Using L2 distance
         sum_ratio = 0
         for pt in query_pts:
             dist = np.sqrt(np.sum(np.square(data_pts - pt), axis=1))
             sum_ratio += np.max(dist) / np.min(dist[dist != 0])
-        L2_ratio.append(sum_ratio / len(query_pts))
+        ratio = sum_ratio / len(query_pts)
+        ratio = np.trunc(ratio * PRECISION) / PRECISION
+        L2_ratio.append(ratio)
 
         # Using L_inf distance
         sum_ratio = 0
         for pt in query_pts:
             dist = np.max(np.abs(data_pts - pt), axis=1)
             sum_ratio += np.max(dist) / np.min(dist[dist != 0])
-        L_inf_ratio.append(sum_ratio / len(query_pts))
+        ratio = sum_ratio / len(query_pts)
+        ratio = np.trunc(ratio * PRECISION) / PRECISION
+        L_inf_ratio.append(ratio)
 
         print(f"Finished analyzing dimension {dim}")
 
@@ -51,7 +57,8 @@ def analyze():
     plt.xlabel("Dimension")
     plt.ylabel("Distance")
     plt.legend()
-    plt.savefig("q1.png")
+    plt.savefig("Q1.png")
+    plt.show()
 
 
 if __name__ == "__main__":

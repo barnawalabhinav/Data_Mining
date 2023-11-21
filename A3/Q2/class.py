@@ -12,11 +12,11 @@ from torch_geometric.loader import DataLoader
 from encoder import *
 
 DATA_DIR = "../dataset/dataset_2/train/"
-BATCH_SIZE = 32
+BATCH_SIZE = -1
 NUM_EPOCHS = 200
 
 # Possible BaseLines: 'Random', 'Logistic', 'Custom'
-MODEL = 'Custom'
+MODEL = 'Random'
 
 NUM_EDIMS = 6
 
@@ -32,6 +32,8 @@ node_features_df = pd.read_csv(DATA_DIR + 'node_features.csv.gz', compression='g
 edge_features_df = pd.read_csv(DATA_DIR + 'edge_features.csv.gz', compression='gzip', header=None)
 
 NUM_GRAPHS = len(graph_labels_df)
+if BATCH_SIZE == -1:
+    BATCH_SIZE = NUM_GRAPHS
 data_list = []
 
 nodes_done = 0
@@ -192,25 +194,18 @@ def train(num_epochs, model_type='Custom'):
         # print(loss)
 
         if epoch % 1 == 0:
-            print(f'Epoch: {epoch:03d}, Loss: {total_loss/num_batches:.4f}, Accuracy: {correct_output / NUM_GRAPHS * 100 :.2f}')
+            print(f'Epoch: {epoch:03d}, Loss: {total_loss/num_batches:.4f}, Accuracy: {correct_output / NUM_GRAPHS * 100 :.2f} %')
 
 
 if MODEL == 'Random':
     random_model = Random_Classifier(num_classes=dataset.num_classes)
-    correct_output = 0
-    total_loss = 0
-    num_batches = 0
-    for batch in dataloader:
-        predicted_output = random_model.forward(batch.x, length=len(batch.y))
-        # print(predicted_output)
-        # print(batch.y)
-        loss = criterion(predicted_output, batch.y)
-        total_loss += loss
-        correct_output += torch.sum(batch.y == predicted_output).item()
-        num_batches += 1
+
+    random_model = Random_Classifier(num_classes=dataset.num_classes)
+    data = next(iter(dataloader))
+    predicted_output = random_model.forward(data.x, length=len(data.y))
+    correct_output = torch.sum(data.y == predicted_output).item()
+    print(f"Random Accuracy: {correct_output / data.num_graphs * 100 :.2f} %")
     
-    print(f"Random Accuracy: {correct_output / NUM_GRAPHS * 100 :.2f}")
-    print(f"Random BCE Loss {total_loss/num_batches}")
 
 elif MODEL == 'Logistic':
     train(NUM_EPOCHS, 'logistic')
