@@ -23,36 +23,35 @@ class CustomDataset(Dataset):
         return self.data_list[idx]
 
 
-class Random_Classifier(torch.nn.Module):
-    def __init__(self, num_classes):
+class Random_Regressor(torch.nn.Module):
+    def __init__(self):
         super().__init__()
-        self.num_classes = num_classes
 
     @torch.no_grad()
-    def predict(self, data: torch.Tensor) -> torch.Tensor:
-        return torch.randint(0, self.num_classes, (data.num_graphs,), dtype=torch.float)
+    def predict(self, data, low=-2, high=5) -> torch.Tensor:
+        return torch.rand(data.num_graphs) * (high - low) + low
 
 
-class Logistic_Regressor(torch.nn.Module):
+class Linear_Regressor(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
-        super(Logistic_Regressor, self).__init__()
+        super(Linear_Regressor, self).__init__()
         self.conv1 = GCNConv(in_channels, hidden_channels)
         self.conv2 = GCNConv(hidden_channels, hidden_channels)
-        self.classifier = torch.nn.Linear(hidden_channels, out_channels)
+        self.regressor = torch.nn.Linear(hidden_channels, out_channels)
 
-        torch.nn.init.xavier_normal_(self.classifier.weight)
-        torch.nn.init.constant_(self.classifier.bias, 0.1)
+        torch.nn.init.xavier_normal_(self.regressor.weight)
+        torch.nn.init.constant_(self.regressor.bias, 0.1)
 
     def forward(self, data) -> torch.Tensor:
         x = self.conv1(data.x, data.edge_index)
-        x = F.relu(x)
+        x = F.leaky_relu(x)
         x = self.conv2(x, data.edge_index)
-        x = F.relu(x)
+        x = F.leaky_relu(x)
         x = global_add_pool(x, data.batch)
 
         # x = F.dropout(x, p=0.5, training=self.training)
-        x = self.classifier(x)
-        x = torch.sigmoid(x).squeeze(dim=1)
+        x = self.regressor(x).squeeze(dim=1)
+        # x = torch.sigmoid(x)
         return x
 
     @torch.no_grad()
@@ -60,28 +59,28 @@ class Logistic_Regressor(torch.nn.Module):
         return self.forward(data)
 
 
-class Custom_Classifier(torch.nn.Module):
+class Custom_Regressor(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
-        super(Custom_Classifier, self).__init__()
-        self.conv1 = GINEConv(torch.nn.Sequential(torch.nn.Linear(in_channels, hidden_channels), torch.nn.ReLU(
+        super(Custom_Regressor, self).__init__()
+        self.conv1 = GINEConv(torch.nn.Sequential(torch.nn.Linear(in_channels, hidden_channels), torch.nn.LeakyReLU(
         ), torch.nn.Linear(hidden_channels, hidden_channels)), edge_dim=3)
-        self.conv2 = GINEConv(torch.nn.Sequential(torch.nn.Linear(hidden_channels, hidden_channels), torch.nn.ReLU(
+        self.conv2 = GINEConv(torch.nn.Sequential(torch.nn.Linear(hidden_channels, hidden_channels), torch.nn.LeakyReLU(
         ), torch.nn.Linear(hidden_channels, hidden_channels)), edge_dim=3)
-        self.classifier = torch.nn.Linear(hidden_channels, out_channels)
+        self.regressor = torch.nn.Linear(hidden_channels, out_channels)
 
-        torch.nn.init.xavier_normal_(self.classifier.weight)
-        torch.nn.init.constant_(self.classifier.bias, 0.1)
+        torch.nn.init.xavier_normal_(self.regressor.weight)
+        torch.nn.init.constant_(self.regressor.bias, 0.1)
 
     def forward(self, data) -> torch.Tensor:
         x = self.conv1(data.x, data.edge_index, data.edge_attr)
-        x = F.relu(x)
+        x = F.leaky_relu(x)
         x = self.conv2(x, data.edge_index, data.edge_attr)
-        x = F.relu(x)
+        x = F.leaky_relu(x)
         x = global_add_pool(x, data.batch)
 
         # x = F.dropout(x, p=0.5, training=self.training)
-        x = self.classifier(x)
-        x = torch.sigmoid(x).squeeze(dim=1)
+        x = self.regressor(x).squeeze(dim=1)
+        # x = torch.sigmoid(x)
         return x
 
     @torch.no_grad()
@@ -101,7 +100,8 @@ def load_data(data_dir, batch_size=-1, num_edims=5, num_ndims=5, load_labels=Tru
 
     # Read the csv files into dataframes
     if load_labels:
-        graph_labels_df = pd.read_csv(os.path.join(DATA_DIR, 'graph_labels.csv.gz'), compression='gzip', header=None)
+        graph_labels_df = pd.read_csv(os.path.join(
+            DATA_DIR, 'graph_labels.csv.gz'), compression='gzip', header=None)
 
     edges_df = pd.read_csv(os.path.join(
         DATA_DIR, 'edges.csv.gz'), compression='gzip', header=None)
@@ -130,9 +130,9 @@ def load_data(data_dir, batch_size=-1, num_edims=5, num_ndims=5, load_labels=Tru
         if load_labels:
             if math.isnan(graph_labels_df.iloc[i, 0]):
                 continue
-    
+
         # -----------------------------------------------------
-        #                 WITHOUT ENCODING 
+        #                 WITHOUT ENCODING
         # -----------------------------------------------------
         node_features = torch.tensor(
             node_features_df.iloc[nodes_done-num_nodes:nodes_done, :].values, dtype=torch.float)
@@ -141,15 +141,16 @@ def load_data(data_dir, batch_size=-1, num_edims=5, num_ndims=5, load_labels=Tru
         edge_features = torch.tensor(
             edge_features_df.iloc[edges_done-num_edges:edges_done, :].values, dtype=torch.float)
 
-        data = Data(x=node_features, edge_index=edges.t().contiguous(), edge_attr=edge_features)
-        
+        data = Data(x=node_features, edge_index=edges.t(
+        ).contiguous(), edge_attr=edge_features)
+
         # -----------------------------------------------------
         #                   WITH ENCODING
         # -----------------------------------------------------
         # node_features = torch.tensor(node_features_df.iloc[nodes_done-num_nodes:nodes_done, :].values, dtype=torch.float)
         # edges = torch.tensor(edges_df.iloc[edges_done-num_edges:edges_done, :].values)
         # edge_features = torch.tensor(edge_features_df.iloc[edges_done-num_edges:edges_done, :].values, dtype=torch.float)
-        
+
         # encoded_edge_features = [torch.empty(3 * NUM_EDIMS) for _ in range(num_edges)]
 
         # # # Initialize a list to hold the combined edge features for each node
@@ -172,7 +173,8 @@ def load_data(data_dir, batch_size=-1, num_edims=5, num_ndims=5, load_labels=Tru
         # data = Data(x=encoded_node_features, edge_index=edges.t().contiguous(), edge_attr=encoded_edge_features)
 
         if load_labels:
-            data.y = torch.tensor([graph_labels_df.iloc[i, 0]], dtype=torch.float)  # Set the label
+            data.y = torch.tensor(
+                [graph_labels_df.iloc[i, 0]], dtype=torch.float)  # Set the label
         data_list.append(data)
 
     def custom_collate(batch):
@@ -193,4 +195,3 @@ def load_data(data_dir, batch_size=-1, num_edims=5, num_ndims=5, load_labels=Tru
         subgraph = data[graph_idx]
     '''
     return dataset, dataloader
-

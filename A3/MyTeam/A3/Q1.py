@@ -58,7 +58,6 @@ def analyze():
     plt.ylabel("Distance")
     plt.legend()
     plt.savefig("Q1.png")
-    plt.show()
 
 
 if __name__ == "__main__":

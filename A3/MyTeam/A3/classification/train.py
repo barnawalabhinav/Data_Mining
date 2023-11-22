@@ -19,6 +19,7 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
     optimizer = torch.optim.Adam(MODEL.parameters(), lr=0.001)
     criterion = torch.nn.BCELoss()
 
+    best_loss = float('inf')
     for epoch in range(num_epochs):
         total_loss = 0
         correct_output = 0
@@ -27,7 +28,7 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
         for batch in dataloader:
             num_graphs += batch.num_graphs
             optimizer.zero_grad()
-            output = MODEL(batch).squeeze(dim=1)
+            output = MODEL(batch)
             labels = torch.where(output < 0.5, torch.tensor(0.0), torch.tensor(1.0))
             # gold = F.one_hot(batch.y, num_classes=2).to(dtype=torch.float)
             loss = criterion(output, batch.y)
@@ -40,14 +41,21 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
 
         if epoch % 1 == 0:
             output = MODEL.predict(val_data)
+            val_loss = criterion(output, val_data.y)
             labels = torch.where(output < 0.5, torch.tensor(0.0), torch.tensor(1.0))
             correct_val = torch.sum(val_data.y == labels).item()
             print('-------------------------------------------')
-            print(f'Epoch: {epoch:03d}, Loss: {total_loss/num_batches:.4f}')
+            print(f'Epoch: {epoch:03d}')
+            print(f'Train Loss: {total_loss/num_batches:.4f}')
+            print(f'Val Loss: {val_loss:.4f}')
             print(f'Train Accuracy: {correct_output / num_graphs * 100 :.2f} %')
             print(f'Val Accuracy: {correct_val / val_data.num_graphs * 100 :.2f} %')
+            if val_loss < best_loss:
+                best_loss = val_loss
+                print('Saving the best model')
+                torch.save(MODEL.state_dict(), model_path)
 
-    torch.save(MODEL.state_dict(), model_path)
+    # torch.save(MODEL.state_dict(), model_path)
 
 
 def main():
