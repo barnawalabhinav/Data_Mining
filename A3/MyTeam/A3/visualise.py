@@ -1,6 +1,7 @@
 import os
 import argparse
 import pandas as pd
+from torch_geometric.utils import to_networkx
 import networkx as nx
 import matplotlib
 matplotlib.use('Agg')

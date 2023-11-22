@@ -4,7 +4,7 @@ import pandas as pd
 
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv, SAGEConv, GINConv, GATConv, GINEConv
-from torch_geometric.nn import global_mean_pool, global_add_pool
+from torch_geometric.nn import global_mean_pool, global_add_pool, global_max_pool
 from torch_geometric.data import Data, Dataset, Batch
 from torch_geometric.loader import DataLoader
 
@@ -36,12 +36,16 @@ class Random_Classifier(torch.nn.Module):
 class Logistic_Regressor(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
         super(Logistic_Regressor, self).__init__()
-        self.conv1 = GCNConv(in_channels, hidden_channels)
-        self.conv2 = GCNConv(hidden_channels, hidden_channels)
+        # self.conv1 = GCNConv(in_channels, hidden_channels)
+        # self.conv2 = GCNConv(hidden_channels, hidden_channels)
+        self.conv1 = GATConv(in_channels, hidden_channels)
+        self.conv2 = GATConv(hidden_channels, hidden_channels)
+        # self.conv1 = SAGEConv(in_channels, hidden_channels)
+        # self.conv2 = SAGEConv(hidden_channels, hidden_channels)
         self.classifier = torch.nn.Linear(hidden_channels, out_channels)
 
-        torch.nn.init.xavier_normal_(self.classifier.weight)
-        torch.nn.init.constant_(self.classifier.bias, 0.1)
+        # torch.nn.init.xavier_normal_(self.classifier.weight)
+        # torch.nn.init.constant_(self.classifier.bias, 0.1)
 
     def forward(self, data) -> torch.Tensor:
         x = self.conv1(data.x, data.edge_index)
@@ -69,8 +73,8 @@ class Custom_Classifier(torch.nn.Module):
         ), torch.nn.Linear(hidden_channels, hidden_channels)), edge_dim=3)
         self.classifier = torch.nn.Linear(hidden_channels, out_channels)
 
-        torch.nn.init.xavier_normal_(self.classifier.weight)
-        torch.nn.init.constant_(self.classifier.bias, 0.1)
+        # torch.nn.init.xavier_normal_(self.classifier.weight)
+        # torch.nn.init.constant_(self.classifier.bias, 0.1)
 
     def forward(self, data) -> torch.Tensor:
         x = self.conv1(data.x, data.edge_index, data.edge_attr)
