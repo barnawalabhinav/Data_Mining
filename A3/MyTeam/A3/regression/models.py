@@ -35,23 +35,15 @@ class Random_Regressor(torch.nn.Module):
 class Linear_Regressor(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
         super(Linear_Regressor, self).__init__()
-        self.conv1 = GCNConv(in_channels, hidden_channels)
-        self.conv2 = GCNConv(hidden_channels, hidden_channels)
-        self.regressor = torch.nn.Linear(hidden_channels, out_channels)
+        self.regressor = torch.nn.Linear(in_channels, out_channels)
 
         torch.nn.init.xavier_normal_(self.regressor.weight)
-        torch.nn.init.constant_(self.regressor.bias, 0.1)
+        # torch.nn.init.constant_(self.regressor.bias, 0.1)
 
     def forward(self, data) -> torch.Tensor:
-        x = self.conv1(data.x, data.edge_index)
-        x = F.leaky_relu(x)
-        x = self.conv2(x, data.edge_index)
-        x = F.leaky_relu(x)
-        x = global_add_pool(x, data.batch)
-
+        x = global_add_pool(data.x, data.batch)
         # x = F.dropout(x, p=0.5, training=self.training)
         x = self.regressor(x).squeeze(dim=1)
-        # x = torch.sigmoid(x)
         return x
 
     @torch.no_grad()
@@ -62,14 +54,19 @@ class Linear_Regressor(torch.nn.Module):
 class Custom_Regressor(torch.nn.Module):
     def __init__(self, in_channels, hidden_channels, out_channels):
         super(Custom_Regressor, self).__init__()
+
         self.conv1 = GINEConv(torch.nn.Sequential(torch.nn.Linear(in_channels, hidden_channels), torch.nn.LeakyReLU(
-        ), torch.nn.Linear(hidden_channels, hidden_channels)), edge_dim=3)
+                            ), torch.nn.Linear(hidden_channels, hidden_channels)), edge_dim=3)
         self.conv2 = GINEConv(torch.nn.Sequential(torch.nn.Linear(hidden_channels, hidden_channels), torch.nn.LeakyReLU(
-        ), torch.nn.Linear(hidden_channels, hidden_channels)), edge_dim=3)
+                            ), torch.nn.Linear(hidden_channels, hidden_channels)), edge_dim=3)
+
+        # self.conv1 = GATConv(in_channels, hidden_channels)
+        # self.conv2 = GATConv(hidden_channels, hidden_channels)
+
         self.regressor = torch.nn.Linear(hidden_channels, out_channels)
 
-        torch.nn.init.xavier_normal_(self.regressor.weight)
-        torch.nn.init.constant_(self.regressor.bias, 0.1)
+        # torch.nn.init.xavier_normal_(self.regressor.weight)
+        # torch.nn.init.constant_(self.regressor.bias, 0.1)
 
     def forward(self, data) -> torch.Tensor:
         x = self.conv1(data.x, data.edge_index, data.edge_attr)
@@ -80,7 +77,6 @@ class Custom_Regressor(torch.nn.Module):
 
         # x = F.dropout(x, p=0.5, training=self.training)
         x = self.regressor(x).squeeze(dim=1)
-        # x = torch.sigmoid(x)
         return x
 
     @torch.no_grad()

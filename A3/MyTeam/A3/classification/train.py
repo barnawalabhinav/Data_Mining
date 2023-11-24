@@ -21,6 +21,7 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
 
     # optimizer = torch.optim.Adam(class_model.parameters(), lr=0.01, weight_decay=1e-3)
     optimizer = torch.optim.Adam(MODEL.parameters(), lr=0.001)
+    # optimizer = torch.optim.AdamW(MODEL.parameters(), lr=0.001, weight_decay=1e-4)
     criterion = torch.nn.BCELoss()
 
     best_loss = float('inf')
@@ -80,7 +81,7 @@ def main():
     parser.add_argument("--dataset_path", required=True)
     parser.add_argument("--val_dataset_path", required=True)
     parser.add_argument("--checkpoint", required=False, default=None, type=str)
-    parser.add_argument("--num_epochs", required=False, default=200, type=int)
+    parser.add_argument("--num_epochs", required=False, default=100, type=int)
     parser.add_argument("--batch_size", required=False, default=32, type=int)
     parser.add_argument("--model", required=False, default='custom', type=str)
     args = parser.parse_args()

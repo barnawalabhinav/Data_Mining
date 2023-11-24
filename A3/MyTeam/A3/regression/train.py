@@ -21,7 +21,8 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
         MODEL.load_state_dict(torch.load(checkpoint_path))
 
     # optimizer = torch.optim.Adam(class_model.parameters(), lr=0.01, weight_decay=1e-3)
-    optimizer = torch.optim.Adam(MODEL.parameters(), lr=0.001)
+    # optimizer = torch.optim.Adam(MODEL.parameters(), lr=0.001)
+    optimizer = torch.optim.AdamW(MODEL.parameters(), lr=0.001, weight_decay=1e-4)
     criterion = torch.nn.MSELoss()
 
     best_loss = float('inf')
