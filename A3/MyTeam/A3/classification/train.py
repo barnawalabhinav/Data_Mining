@@ -1,7 +1,7 @@
 import torch
 import argparse
 
-from models import Custom_Classifier, Logistic_Regressor, load_data
+from models import Custom_Classifier, Logistic_Regressor, load_data, hinge_loss, svm_loss
 from sklearn.metrics import roc_auc_score, accuracy_score
 
 
@@ -48,6 +48,22 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
             loss += 0.01 * torch.sum(weight * weight)
             # loss += 0.01 * torch.sum(1.0 * weight * weight + torch.abs(weight))
             # -----------------------------------------------
+
+            # # # ****************** Custom loss functions ******************
+            # # # Convert labels to -1 and 1
+            # # labels[labels == 0] = -1
+            # output_labels = torch.where(output < 0.5, torch.tensor(-1.0), torch.tensor(1.0))
+            # true_labels = torch.where(batch.y < 0.5, torch.tensor(-1.0), torch.tensor(1.0))
+
+            # # # Get the weights and bias from your model
+            # weights = MODEL.classifier.weight
+            # bias = MODEL.classifier.bias
+
+            # # # Compute the loss
+            # # loss = svm_loss(output_labels, true_labels, weights, bias, C=1.0)
+            # SVMLoss = torch.nn.HingeEmbeddingLoss()
+            # loss = SVMLoss(output_labels, true_labels)
+            # # # -----------------------------------------------
 
             loss.backward()
             optimizer.step()

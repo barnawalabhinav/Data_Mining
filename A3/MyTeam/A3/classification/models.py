@@ -1,7 +1,7 @@
 import os
 import math
+import torch
 import pandas as pd
-
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv, SAGEConv, GINConv, GATConv, GINEConv
 from torch_geometric.nn import global_mean_pool, global_add_pool, global_max_pool
@@ -56,48 +56,63 @@ class Logistic_Regressor(torch.nn.Module):
 class Custom_Classifier(torch.nn.Module):
     def __init__(self, in_channels, out_channels, edge_dim):
         super(Custom_Classifier, self).__init__()
-        
+        '''
         hidden_channels_1 = 256
         hidden_channels_2 = 128
         hidden_channels_3 = 32
 
-        # self.conv1 = GINEConv(torch.nn.Sequential(torch.nn.Linear(in_channels, hidden_channels_1), torch.nn.ReLU(
-        #                     ), torch.nn.Linear(hidden_channels_1, hidden_channels_1)), edge_dim=edge_dim)
-        # self.conv2 = GINEConv(torch.nn.Sequential(torch.nn.Linear(hidden_channels_1, hidden_channels_2), torch.nn.ReLU(
-        #                     ), torch.nn.Linear(hidden_channels_2, hidden_channels_2)), edge_dim=edge_dim)
-
         self.conv1 = GATConv(in_channels, hidden_channels_1)
         self.conv2 = GATConv(hidden_channels_1, hidden_channels_2)
-
-        # self.conv1 = GINConv(torch.nn.Sequential(torch.nn.Linear(in_channels, hidden_channels), torch.nn.ReLU(
-        #                     ), torch.nn.Linear(hidden_channels, hidden_channels)))
-        # self.conv2 = GINConv(torch.nn.Sequential(torch.nn.Linear(hidden_channels, hidden_channels), torch.nn.ReLU(
-        #                     ), torch.nn.Linear(hidden_channels, out_channels)))
-
-        # self.conv1 = GCNConv(in_channels, hidden_channels)
-        # self.conv2 = GCNConv(hidden_channels, hidden_channels)
-
-        # self.conv1 = SAGEConv(in_channels, hidden_channels)
-        # self.conv2 = SAGEConv(hidden_channels, hidden_channels)
-
         self.fc = torch.nn.Linear(hidden_channels_2, hidden_channels_3)
-
         self.classifier = torch.nn.Linear(hidden_channels_3, out_channels)
+        '''
+        hidden_channels_01 = 64
+        hidden_channels_02 = 128
+        hidden_channels_1 = 256
+        hidden_channels_2 = 128
+        hidden_channels_3 = 64
+        hidden_channels_4 = 32
 
+        self.conv1 = GINEConv(torch.nn.Sequential(torch.nn.Linear(in_channels, hidden_channels_01), torch.nn.ReLU(
+                            ), torch.nn.Linear(hidden_channels_01, hidden_channels_02)), edge_dim=edge_dim)
+        self.conv2 = GINEConv(torch.nn.Sequential(torch.nn.Linear(hidden_channels_02, hidden_channels_1), torch.nn.ReLU(
+                            ), torch.nn.Linear(hidden_channels_1, hidden_channels_2)), edge_dim=edge_dim)
+
+        # self.conv1 = GATConv(in_channels, hidden_channels_1)
+        # self.conv2 = GATConv(hidden_channels_02, hidden_channels_1)
+        # self.conv3 = GATConv(hidden_channels_1, hidden_channels_2)
+
+        self.fc1 = torch.nn.Linear(hidden_channels_2, hidden_channels_3)
+        self.fc2 = torch.nn.Linear(hidden_channels_3, hidden_channels_4)
+
+        self.classifier = torch.nn.Linear(hidden_channels_4, out_channels)
+
+        # --------------------------------
         torch.nn.init.xavier_normal_(self.classifier.weight)
         torch.nn.init.constant_(self.classifier.bias, 0.1)
 
     def forward(self, data) -> torch.Tensor:
+        '''
         x = self.conv1(data.x, data.edge_index, data.edge_attr)
         x = F.relu(x)
         x = self.conv2(x, data.edge_index, data.edge_attr)
         x = F.relu(x)
         x = global_add_pool(x, data.batch)
-
-        # x = F.dropout(x, p=0.5, training=self.training)
         x = self.fc(x)
         x = F.relu(x)
+        '''
+        x = self.conv1(data.x, data.edge_index, data.edge_attr)
+        x = F.relu(x)
+        x = self.conv2(x, data.edge_index, data.edge_attr)
+        x = F.relu(x)
+        x = global_add_pool(x, data.batch)
+        x = self.fc1(x)
+        x = F.relu(x)
+        x = F.dropout(x, p=0.6)
+        x = self.fc2(x)
+        x = F.relu(x)
 
+        # ------------------------------
         x = self.classifier(x)
         x = torch.sigmoid(x).squeeze(dim=1)
         return x
@@ -148,9 +163,9 @@ def load_data(data_dir, batch_size=-1, num_edims=5, num_ndims=5, load_labels=Tru
         if load_labels:
             if math.isnan(graph_labels_df.iloc[i, 0]):
                 continue
-    
+
         # -----------------------------------------------------
-        #                 WITHOUT ENCODING 
+        #                 WITHOUT ENCODING
         # -----------------------------------------------------
         node_features = torch.tensor(
             node_features_df.iloc[nodes_done-num_nodes:nodes_done, :].values, dtype=torch.float)
@@ -165,14 +180,14 @@ def load_data(data_dir, batch_size=-1, num_edims=5, num_ndims=5, load_labels=Tru
         # ************************************************************
 
         data = Data(x=node_features, edge_index=edges.t().contiguous(), edge_attr=edge_features)
-        
+
         # -----------------------------------------------------
         #                   WITH ENCODING
         # -----------------------------------------------------
         # node_features = torch.tensor(node_features_df.iloc[nodes_done-num_nodes:nodes_done, :].values, dtype=torch.float)
         # edges = torch.tensor(edges_df.iloc[edges_done-num_edges:edges_done, :].values)
         # edge_features = torch.tensor(edge_features_df.iloc[edges_done-num_edges:edges_done, :].values, dtype=torch.float)
-        
+
         # encoded_edge_features = [torch.empty(3 * NUM_EDIMS) for _ in range(num_edges)]
 
         # # # Initialize a list to hold the combined edge features for each node
@@ -217,3 +232,24 @@ def load_data(data_dir, batch_size=-1, num_edims=5, num_ndims=5, load_labels=Tru
     '''
     return dataset, dataloader
 
+
+# defining custom loss function to be used while training
+
+def hinge_loss(output, target):
+    hinge_loss = 1 - torch.mul(output, target)
+    hinge_loss[hinge_loss < 0] = 0
+    return hinge_loss.mean()
+
+
+def svm_loss(output, target, weights, bias, C=1.0):
+    # Calculate |w|/2
+    w_norm = torch.sum(weights ** 2) / 2.0
+
+    # Calculate hinge loss
+    hinge_loss = F.relu(1 - target * (output - bias))
+    # hinge_loss = F.relu(1 - target * (output))
+
+    # Calculate total loss
+    total_loss = w_norm + C * torch.sum(hinge_loss ** 2)
+
+    return total_loss

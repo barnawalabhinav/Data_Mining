@@ -1,7 +1,7 @@
 import os
 import math
+import torch
 import pandas as pd
-
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv, SAGEConv, GINConv, GATConv, GINEConv
 from torch_geometric.nn import global_mean_pool, global_add_pool
@@ -54,22 +54,26 @@ class Linear_Regressor(torch.nn.Module):
 class Custom_Regressor(torch.nn.Module):
     def __init__(self, in_channels, out_channels, edge_dim):
         super(Custom_Regressor, self).__init__()
-
+        hidden_channels_01 = 32
+        hidden_channels_02 = 64
+        hidden_channels_03 = 128
         hidden_channels_1 = 256
         hidden_channels_2 = 128
-        hidden_channels_3 = 32
+        hidden_channels_3 = 64
+        hidden_channels_4 = 32
 
-        self.conv1 = GINEConv(torch.nn.Sequential(torch.nn.Linear(in_channels, hidden_channels_1), torch.nn.LeakyReLU(
-                            ), torch.nn.Linear(hidden_channels_1, hidden_channels_1)), edge_dim=edge_dim)
-        self.conv2 = GINEConv(torch.nn.Sequential(torch.nn.Linear(hidden_channels_1, hidden_channels_2), torch.nn.LeakyReLU(
-                            ), torch.nn.Linear(hidden_channels_2, hidden_channels_2)), edge_dim=edge_dim)
+        self.conv1 = GINEConv(torch.nn.Sequential(torch.nn.Linear(in_channels, hidden_channels_01), torch.nn.LeakyReLU(
+                            ), torch.nn.Linear(hidden_channels_01, hidden_channels_02)), edge_dim=edge_dim)
+        self.conv2 = GINEConv(torch.nn.Sequential(torch.nn.Linear(hidden_channels_02, hidden_channels_03), torch.nn.LeakyReLU(
+                            ), torch.nn.Linear(hidden_channels_03, hidden_channels_1)), edge_dim=edge_dim)
 
         # self.conv1 = GATConv(in_channels, hidden_channels_1)
         # self.conv2 = GATConv(hidden_channels_1, hidden_channels_2)
 
-        self.fc = torch.nn.Linear(hidden_channels_2, hidden_channels_3)
-
-        self.regressor = torch.nn.Linear(hidden_channels_3, out_channels)
+        self.fc0 = torch.nn.Linear(hidden_channels_1, hidden_channels_2)
+        self.fc1 = torch.nn.Linear(hidden_channels_2, hidden_channels_3)
+        self.fc2 = torch.nn.Linear(hidden_channels_3, hidden_channels_4)
+        self.regressor = torch.nn.Linear(hidden_channels_4, out_channels)
 
         # torch.nn.init.xavier_normal_(self.regressor.weight)
         # torch.nn.init.constant_(self.regressor.bias, 0.1)
@@ -80,14 +84,16 @@ class Custom_Regressor(torch.nn.Module):
         x = self.conv2(x, data.edge_index, data.edge_attr)
         x = F.leaky_relu(x)
         x = global_add_pool(x, data.batch)
-        
-        x = self.fc(x)
+        x = self.fc0(x)
+        x = F.leaky_relu(x)
+        x = F.dropout(x, p=0.5)
+        x = self.fc1(x)
+        x = F.leaky_relu(x)
+        x = self.fc2(x)
         x = F.leaky_relu(x)
 
-        # x = F.dropout(x, p=0.5, training=self.training)
         x = self.regressor(x).squeeze(dim=1)
         return x
-
     @torch.no_grad()
     def predict(self, data) -> torch.Tensor:
         return self.forward(data)
