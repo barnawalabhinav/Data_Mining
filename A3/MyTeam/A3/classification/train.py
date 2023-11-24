@@ -10,11 +10,11 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
 
     if model == 'custom':
         MODEL = Custom_Classifier(
-            in_channels=dataset.num_features, hidden_channels=32, out_channels=1)
+            in_channels=dataset.num_features, out_channels=1, edge_dim=dataset.num_edge_features)
     else:
         print(f'Running the baseline model')
         MODEL = Logistic_Regressor(
-            in_channels=dataset.num_features, hidden_channels=32, out_channels=1)
+            in_channels=dataset.num_features, out_channels=1)
 
     if checkpoint_path is not None:
         MODEL.load_state_dict(torch.load(checkpoint_path))
@@ -81,7 +81,7 @@ def main():
     parser.add_argument("--dataset_path", required=True)
     parser.add_argument("--val_dataset_path", required=True)
     parser.add_argument("--checkpoint", required=False, default=None, type=str)
-    parser.add_argument("--num_epochs", required=False, default=100, type=int)
+    parser.add_argument("--num_epochs", required=False, default=200, type=int)
     parser.add_argument("--batch_size", required=False, default=32, type=int)
     parser.add_argument("--model", required=False, default='custom', type=str)
     args = parser.parse_args()

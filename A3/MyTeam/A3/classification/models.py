@@ -34,7 +34,7 @@ class Random_Classifier(torch.nn.Module):
 
 
 class Logistic_Regressor(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels):
+    def __init__(self, in_channels, out_channels):
         super(Logistic_Regressor, self).__init__()
         self.classifier = torch.nn.Linear(in_channels, out_channels)
 
@@ -54,15 +54,20 @@ class Logistic_Regressor(torch.nn.Module):
 
 
 class Custom_Classifier(torch.nn.Module):
-    def __init__(self, in_channels, hidden_channels, out_channels):
+    def __init__(self, in_channels, out_channels, edge_dim):
         super(Custom_Classifier, self).__init__()
-        # self.conv1 = GINEConv(torch.nn.Sequential(torch.nn.Linear(in_channels, hidden_channels), torch.nn.ReLU(
-        #                     ), torch.nn.Linear(hidden_channels, hidden_channels)), edge_dim=3)
-        # self.conv2 = GINEConv(torch.nn.Sequential(torch.nn.Linear(hidden_channels, hidden_channels), torch.nn.ReLU(
-        #                     ), torch.nn.Linear(hidden_channels, hidden_channels)), edge_dim=3)
+        
+        hidden_channels_1 = 256
+        hidden_channels_2 = 128
+        hidden_channels_3 = 32
 
-        self.conv1 = GATConv(in_channels, hidden_channels)
-        self.conv2 = GATConv(hidden_channels, hidden_channels)
+        # self.conv1 = GINEConv(torch.nn.Sequential(torch.nn.Linear(in_channels, hidden_channels_1), torch.nn.ReLU(
+        #                     ), torch.nn.Linear(hidden_channels_1, hidden_channels_1)), edge_dim=edge_dim)
+        # self.conv2 = GINEConv(torch.nn.Sequential(torch.nn.Linear(hidden_channels_1, hidden_channels_2), torch.nn.ReLU(
+        #                     ), torch.nn.Linear(hidden_channels_2, hidden_channels_2)), edge_dim=edge_dim)
+
+        self.conv1 = GATConv(in_channels, hidden_channels_1)
+        self.conv2 = GATConv(hidden_channels_1, hidden_channels_2)
 
         # self.conv1 = GINConv(torch.nn.Sequential(torch.nn.Linear(in_channels, hidden_channels), torch.nn.ReLU(
         #                     ), torch.nn.Linear(hidden_channels, hidden_channels)))
@@ -75,7 +80,9 @@ class Custom_Classifier(torch.nn.Module):
         # self.conv1 = SAGEConv(in_channels, hidden_channels)
         # self.conv2 = SAGEConv(hidden_channels, hidden_channels)
 
-        self.classifier= torch.nn.Linear(hidden_channels, out_channels)
+        self.fc = torch.nn.Linear(hidden_channels_2, hidden_channels_3)
+
+        self.classifier = torch.nn.Linear(hidden_channels_3, out_channels)
 
         torch.nn.init.xavier_normal_(self.classifier.weight)
         torch.nn.init.constant_(self.classifier.bias, 0.1)
@@ -88,6 +95,9 @@ class Custom_Classifier(torch.nn.Module):
         x = global_add_pool(x, data.batch)
 
         # x = F.dropout(x, p=0.5, training=self.training)
+        x = self.fc(x)
+        x = F.relu(x)
+
         x = self.classifier(x)
         x = torch.sigmoid(x).squeeze(dim=1)
         return x
@@ -148,6 +158,11 @@ def load_data(data_dir, batch_size=-1, num_edims=5, num_ndims=5, load_labels=Tru
             edges_df.iloc[edges_done-num_edges:edges_done, :].values)
         edge_features = torch.tensor(
             edge_features_df.iloc[edges_done-num_edges:edges_done, :].values, dtype=torch.float)
+
+        # ******************** ENCODEING FEATURES ********************
+        # node_features = node_encoder(node_features.long())
+        # edge_features = edge_encoder(edge_features.long())
+        # ************************************************************
 
         data = Data(x=node_features, edge_index=edges.t().contiguous(), edge_attr=edge_features)
         

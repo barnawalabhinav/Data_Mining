@@ -43,10 +43,10 @@ def predict(model_path, test_data_path, model='custom'):
     if model == 'random':
         MODEL = Random_Classifier(num_classes=2)
     elif model == 'custom':
-        MODEL = Custom_Classifier(in_channels=dataset.num_features, hidden_channels=32, out_channels=1)
+        MODEL = Custom_Classifier(in_channels=dataset.num_features, out_channels=1)
         MODEL.load_state_dict(torch.load(model_path))
     else:
-        MODEL = Logistic_Regressor(in_channels=dataset.num_features, hidden_channels=32, out_channels=1)
+        MODEL = Logistic_Regressor(in_channels=dataset.num_features, out_channels=1)
         MODEL.load_state_dict(torch.load(model_path))
 
     data = next(iter(dataloader))

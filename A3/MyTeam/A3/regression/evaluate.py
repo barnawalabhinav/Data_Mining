@@ -49,11 +49,11 @@ def predict(model_path, test_data_path, model='custom'):
         MODEL = Random_Regressor(num_classes=2)
     elif model == 'custom':
         MODEL = Custom_Regressor(
-            in_channels=dataset.num_features, hidden_channels=32, out_channels=1)
+            in_channels=dataset.num_features, out_channels=1)
         MODEL.load_state_dict(torch.load(model_path))
     else:
         MODEL = Linear_Regressor(
-            in_channels=dataset.num_features, hidden_channels=32, out_channels=1)
+            in_channels=dataset.num_features, out_channels=1)
         MODEL.load_state_dict(torch.load(model_path))
 
     data = next(iter(dataloader))
