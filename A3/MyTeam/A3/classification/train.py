@@ -2,6 +2,8 @@ import torch
 import argparse
 
 from models import Custom_Classifier, Logistic_Regressor, load_data
+from sklearn.metrics import roc_auc_score, accuracy_score
+
 
 def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size=32, model='custom', checkpoint_path=None):
     dataset, dataloader = load_data(train_data_path, batch_size)
@@ -26,6 +28,7 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
 
     best_loss = float('inf')
     best_acc = 0
+    best_score = 0
     for epoch in range(num_epochs):
         train_loss = 0
         correct_output = 0
@@ -59,16 +62,22 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
             labels = torch.where(output < 0.5, torch.tensor(0.0), torch.tensor(1.0))
             correct_val = torch.sum(val_data.y == labels).item()
             val_acc = correct_val / val_data.num_graphs * 100
+            val_score = roc_auc_score(val_data.y.detach().cpu().numpy(), output.detach().cpu().numpy())
+
             print('-------------------------------------------')
             print(f'Epoch: {epoch:03d}')
             print(f'Train Loss: {train_loss/num_batches:.4f}')
             print(f'Val Loss: {val_loss:.4f}')
             print(f'Train Accuracy: {correct_output / num_graphs * 100 :.2f} %')
             print(f'Val Accuracy: {val_acc :.2f} %')
+            print(f'val ROC_AUC_score: {val_score:.4f}')
+
             # if val_loss < best_loss:
                 # best_loss = val_loss
-            if val_acc > best_acc:
-                best_acc = val_acc
+            # if val_acc > best_acc:
+            #     best_acc = val_acc
+            if val_score > best_score:
+                best_score = val_score
                 print('Saving the best model')
                 torch.save(MODEL.state_dict(), model_path)
 
