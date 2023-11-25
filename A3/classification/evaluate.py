@@ -3,6 +3,7 @@ import torch
 import argparse
 import numpy as np
 import pandas as pd
+from sklearn.metrics import roc_auc_score
 
 from models import Random_Classifier, Logistic_Regressor, Custom_Classifier, load_data
 
@@ -36,26 +37,28 @@ def tocsv(y_arr, *, task):
     df.to_csv(f"y_{task}.csv", index=False, header=False)
 
 
-def predict(model_path, test_data_path, model='custom'):
-    SHOW_ACCURACY = False
-    dataset, dataloader = load_data(test_data_path, batch_size=-1, load_labels=SHOW_ACCURACY, shuffle=False)
+def predict(model_path, test_data_path, model='custom', show_acc=False):
+    dataset, dataloader = load_data(test_data_path, batch_size=-1, load_labels=show_acc, shuffle=False)
 
     if model == 'random':
         MODEL = Random_Classifier(num_classes=2)
     elif model == 'custom':
-        MODEL = Custom_Classifier(in_channels=dataset.num_features, out_channels=1)
+        MODEL = Custom_Classifier(in_channels=dataset.num_features, out_channels=1, edge_dim=dataset.num_edge_features)
         MODEL.load_state_dict(torch.load(model_path))
     else:
         MODEL = Logistic_Regressor(in_channels=dataset.num_features, out_channels=1)
         MODEL.load_state_dict(torch.load(model_path))
 
+    MODEL.eval()
     data = next(iter(dataloader))
     output = MODEL.predict(data)
 
-    if SHOW_ACCURACY:
+    if show_acc:
         labels = torch.where(output < 0.5, torch.tensor(0.0), torch.tensor(1.0))
         correct_output = torch.sum(data.y == labels).item()
         print(f"Accuracy with model {model}: {correct_output / data.num_graphs * 100 :.2f} %")
+        score = roc_auc_score(data.y.detach().cpu().numpy(), output.detach().cpu().numpy())
+        print(f"ROC AUC score with model {model}: {score:.4f}")
 
     return output
 
@@ -65,10 +68,11 @@ def main():
     parser.add_argument("--model_path", required=True)
     parser.add_argument("--dataset_path", required=True)
     parser.add_argument("--model", required=False, default='custom', type=str)
+    parser.add_argument("--show_acc", required=False, default=False, type=bool)
     args = parser.parse_args()
     print(f"Evaluating the classification model. Model will be loaded from {args.model_path}. Test dataset will be loaded from {args.dataset_path}.")
 
-    predicted_output = predict(args.model_path, args.dataset_path, args.model)
+    predicted_output = predict(args.model_path, args.dataset_path, args.model, args.show_acc)
     output = predicted_output.cpu().numpy()
     tocsv(output, task="classification")
 

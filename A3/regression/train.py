@@ -20,6 +20,7 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
     if checkpoint_path is not None:
         MODEL.load_state_dict(torch.load(checkpoint_path))
 
+    MODEL.train()
     # optimizer = torch.optim.Adam(class_model.parameters(), lr=0.01, weight_decay=1e-3)
     # optimizer = torch.optim.Adam(MODEL.parameters(), lr=0.001)
     optimizer = torch.optim.AdamW(MODEL.parameters(), lr=0.001, weight_decay=1e-4)
@@ -43,7 +44,8 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
             loss.backward()
             optimizer.step()
 
-            train_loss += loss
+            train_output = MODEL.predict(batch)
+            train_loss += criterion(train_output, batch.y)
             num_batches += 1
 
         if epoch % 1 == 0:
@@ -67,7 +69,7 @@ def main():
     parser.add_argument("--dataset_path", required=True)
     parser.add_argument("--val_dataset_path", required=True)
     parser.add_argument("--checkpoint", required=False, default=None, type=str)
-    parser.add_argument("--num_epochs", required=False, default=200, type=int)
+    parser.add_argument("--num_epochs", required=False, default=300, type=int)
     parser.add_argument("--batch_size", required=False, default=32, type=int)
     parser.add_argument("--model", required=False, default='custom', type=str)
     args = parser.parse_args()

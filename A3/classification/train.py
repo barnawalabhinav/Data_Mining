@@ -2,7 +2,7 @@ import torch
 import argparse
 
 from models import Custom_Classifier, Logistic_Regressor, load_data, hinge_loss, svm_loss
-from sklearn.metrics import roc_auc_score, accuracy_score
+from sklearn.metrics import roc_auc_score
 
 
 def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size=32, model='custom', checkpoint_path=None):
@@ -15,12 +15,12 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
             in_channels=dataset.num_features, out_channels=1, edge_dim=dataset.num_edge_features)
     else:
         print(f'Running the baseline model')
-        MODEL = Logistic_Regressor(
-            in_channels=dataset.num_features, out_channels=1)
+        MODEL = Logistic_Regressor(in_channels=dataset.num_features, out_channels=1)
 
     if checkpoint_path is not None:
         MODEL.load_state_dict(torch.load(checkpoint_path))
 
+    MODEL.train()
     # optimizer = torch.optim.Adam(class_model.parameters(), lr=0.01, weight_decay=1e-3)
     optimizer = torch.optim.Adam(MODEL.parameters(), lr=0.001)
     # optimizer = torch.optim.AdamW(MODEL.parameters(), lr=0.001, weight_decay=1e-4)
@@ -68,7 +68,8 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
             loss.backward()
             optimizer.step()
 
-            train_loss += loss
+            train_output = MODEL.predict(batch)
+            train_loss += criterion(train_output, batch.y)
             num_batches += 1
             correct_output += torch.sum(batch.y == labels).item()
 

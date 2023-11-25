@@ -40,26 +40,24 @@ def tocsv(y_arr, *, task):
     df.to_csv(f"y_{task}.csv", index=False, header=False)
 
 
-def predict(model_path, test_data_path, model='custom'):
-    SHOW_ACCURACY = False
+def predict(model_path, test_data_path, model='custom', show_acc=False):
     dataset, dataloader = load_data(
-        test_data_path, batch_size=-1, load_labels=SHOW_ACCURACY, shuffle=False)
+        test_data_path, batch_size=-1, load_labels=show_acc, shuffle=False)
 
     if model == 'random':
         MODEL = Random_Regressor(num_classes=2)
     elif model == 'custom':
-        MODEL = Custom_Regressor(
-            in_channels=dataset.num_features, out_channels=1)
+        MODEL = Custom_Regressor(in_channels=dataset.num_features, out_channels=1, edge_dim=dataset.num_edge_features)
         MODEL.load_state_dict(torch.load(model_path))
     else:
-        MODEL = Linear_Regressor(
-            in_channels=dataset.num_features, out_channels=1)
+        MODEL = Linear_Regressor(in_channels=dataset.num_features, out_channels=1)
         MODEL.load_state_dict(torch.load(model_path))
 
+    MODEL.eval()
     data = next(iter(dataloader))
     output = MODEL.predict(data)
 
-    if SHOW_ACCURACY:
+    if show_acc:
         val_loss = torch.nn.MSELoss()(output, data.y)
         print(f"Loss with {model} model: {val_loss:.4f}")
 
@@ -72,11 +70,12 @@ def main():
     parser.add_argument("--model_path", required=True)
     parser.add_argument("--dataset_path", required=True)
     parser.add_argument("--model", required=False, default='custom', type=str)
+    parser.add_argument("--show_acc", required=False, default=False, type=bool)
     args = parser.parse_args()
     print(
         f"Evaluating the regression model. Model will be loaded from {args.model_path}. Test dataset will be loaded from {args.dataset_path}.")
 
-    predicted_output = predict(args.model_path, args.dataset_path, args.model)
+    predicted_output = predict(args.model_path, args.dataset_path, args.model, args.show_acc)
     output = predicted_output.cpu().numpy()
     tocsv(output, task="regression")
 

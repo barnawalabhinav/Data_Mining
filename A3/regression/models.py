@@ -42,7 +42,6 @@ class Linear_Regressor(torch.nn.Module):
 
     def forward(self, data) -> torch.Tensor:
         x = global_add_pool(data.x, data.batch)
-        # x = F.dropout(x, p=0.5, training=self.training)
         x = self.regressor(x).squeeze(dim=1)
         return x
 
@@ -79,7 +78,7 @@ class Custom_Regressor(torch.nn.Module):
         # torch.nn.init.xavier_normal_(self.regressor.weight)
         # torch.nn.init.constant_(self.regressor.bias, 0.1)
 
-    def forward(self, data) -> torch.Tensor:
+    def forward(self, data, eval=False) -> torch.Tensor:
         x = self.conv1(data.x, data.edge_index, data.edge_attr)
         x = F.leaky_relu(x)
         x = self.conv2(x, data.edge_index, data.edge_attr)
@@ -87,7 +86,8 @@ class Custom_Regressor(torch.nn.Module):
         x = global_add_pool(x, data.batch)
         x = self.fc0(x)
         x = F.leaky_relu(x)
-        x = F.dropout(x, p=0.5)
+        if not eval:
+            x = F.dropout(x, p=0.5)
         x = self.fc1(x)
         x = F.leaky_relu(x)
         x = self.fc2(x)
@@ -95,9 +95,10 @@ class Custom_Regressor(torch.nn.Module):
 
         x = self.regressor(x).squeeze(dim=1)
         return x
+
     @torch.no_grad()
     def predict(self, data) -> torch.Tensor:
-        return self.forward(data)
+        return self.forward(data, eval=True)
 
 
 def load_data(data_dir, batch_size=-1, num_edims=5, num_ndims=5, load_labels=True, shuffle=True):

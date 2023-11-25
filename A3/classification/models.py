@@ -3,6 +3,7 @@ import math
 import torch
 import pandas as pd
 import torch.nn.functional as F
+from torch_geometric.explain.algorithm import GNNExplainer
 from torch_geometric.nn import GCNConv, SAGEConv, GINConv, GATConv, GINEConv
 from torch_geometric.nn import global_mean_pool, global_add_pool, global_max_pool
 from torch_geometric.data import Data, Dataset, Batch
@@ -92,7 +93,7 @@ class Custom_Classifier(torch.nn.Module):
         torch.nn.init.xavier_normal_(self.classifier.weight)
         torch.nn.init.constant_(self.classifier.bias, 0.1)
 
-    def forward(self, data) -> torch.Tensor:
+    def forward(self, data, eval=False) -> torch.Tensor:
         '''
         x = self.conv1(data.x, data.edge_index, data.edge_attr)
         x = F.relu(x)
@@ -109,7 +110,8 @@ class Custom_Classifier(torch.nn.Module):
         x = global_add_pool(x, data.batch)
         x = self.fc1(x)
         x = F.relu(x)
-        x = F.dropout(x, p=0.6)
+        if not eval:
+            x = F.dropout(x, p=0.6)
         x = self.fc2(x)
         x = F.relu(x)
 
@@ -120,7 +122,7 @@ class Custom_Classifier(torch.nn.Module):
 
     @torch.no_grad()
     def predict(self, data) -> torch.Tensor:
-        return self.forward(data)
+        return self.forward(data, eval=True)
 
 
 def load_data(data_dir, batch_size=-1, num_edims=5, num_ndims=5, load_labels=True, shuffle=True):
