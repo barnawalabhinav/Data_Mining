@@ -45,12 +45,12 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
             optimizer.step()
 
             train_output = MODEL.predict(batch)
-            train_loss += criterion(train_output, batch.y)
+            train_loss += torch.sqrt(criterion(train_output, batch.y))
             num_batches += 1
 
         if epoch % 1 == 0:
             output = MODEL.predict(val_data)
-            val_loss = criterion(output, val_data.y)
+            val_loss = torch.sqrt(criterion(output, val_data.y))
             print('-------------------------------------------')
             print(f'Epoch: {epoch:03d}')
             print(f'Train Loss: {train_loss/num_batches:.4f}')

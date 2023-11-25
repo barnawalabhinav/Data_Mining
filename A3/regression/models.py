@@ -67,8 +67,9 @@ class Custom_Regressor(torch.nn.Module):
         self.conv2 = GINEConv(torch.nn.Sequential(torch.nn.Linear(hidden_channels_02, hidden_channels_03), torch.nn.LeakyReLU(
                             ), torch.nn.Linear(hidden_channels_03, hidden_channels_1)), edge_dim=edge_dim)
 
-        # self.conv1 = GATConv(in_channels, hidden_channels_1)
-        # self.conv2 = GATConv(hidden_channels_1, hidden_channels_2)
+        # self.conv1 = GATConv(in_channels, hidden_channels_01)
+        # self.conv2 = GATConv(hidden_channels_01, hidden_channels_03)
+        # self.conv3 = GATConv(hidden_channels_03, hidden_channels_1)
 
         self.fc0 = torch.nn.Linear(hidden_channels_1, hidden_channels_2)
         self.fc1 = torch.nn.Linear(hidden_channels_2, hidden_channels_3)
@@ -83,6 +84,8 @@ class Custom_Regressor(torch.nn.Module):
         x = F.leaky_relu(x)
         x = self.conv2(x, data.edge_index, data.edge_attr)
         x = F.leaky_relu(x)
+        # x = self.conv3(x, data.edge_index, data.edge_attr)
+        # x = F.leaky_relu(x)
         x = global_add_pool(x, data.batch)
         x = self.fc0(x)
         x = F.leaky_relu(x)

@@ -58,7 +58,7 @@ def predict(model_path, test_data_path, model='custom', show_acc=False):
     output = MODEL.predict(data)
 
     if show_acc:
-        val_loss = torch.nn.MSELoss()(output, data.y)
+        val_loss = torch.sqrt(torch.nn.MSELoss()(output, data.y))
         print(f"Loss with {model} model: {val_loss:.4f}")
 
     return output
