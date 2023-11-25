@@ -56,6 +56,7 @@ class Logistic_Regressor(torch.nn.Module):
 class Custom_Classifier(torch.nn.Module):
     def __init__(self, in_channels, out_channels, edge_dim):
         super(Custom_Classifier, self).__init__()
+        torch.manual_seed(12345)
         '''
         hidden_channels_1 = 256
         hidden_channels_2 = 128

@@ -54,6 +54,7 @@ class Linear_Regressor(torch.nn.Module):
 class Custom_Regressor(torch.nn.Module):
     def __init__(self, in_channels, out_channels, edge_dim):
         super(Custom_Regressor, self).__init__()
+        torch.manual_seed(12345)
         hidden_channels_01 = 32
         hidden_channels_02 = 64
         hidden_channels_03 = 128
