@@ -56,6 +56,7 @@ def predict(model_path, test_data_path, model='custom', show_acc=False):
     if show_acc:
         labels = torch.where(output < 0.45, torch.tensor(0.0), torch.tensor(1.0))
         correct_output = torch.sum(data.y == labels).item()
+        print(labels)
         print(f"Accuracy with model {model}: {correct_output / data.num_graphs * 100 :.2f} %")
         score = roc_auc_score(data.y.detach().cpu().numpy(), output.detach().cpu().numpy())
         print(f"ROC AUC score with model {model}: {score:.4f}")

@@ -45,7 +45,7 @@ def predict(model_path, test_data_path, model='custom', show_acc=False):
         test_data_path, batch_size=-1, load_labels=show_acc, shuffle=False)
 
     if model == 'random':
-        MODEL = Random_Regressor(num_classes=2)
+        MODEL = Random_Regressor()
     elif model == 'custom':
         MODEL = Custom_Regressor(in_channels=dataset.num_features, out_channels=1, edge_dim=dataset.num_edge_features)
         MODEL.load_state_dict(torch.load(model_path))

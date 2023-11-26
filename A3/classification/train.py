@@ -22,8 +22,8 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
 
     MODEL.train()
     # optimizer = torch.optim.Adam(class_model.parameters(), lr=0.01, weight_decay=1e-3)
-    optimizer = torch.optim.Adam(MODEL.parameters(), lr=0.001)
-    # optimizer = torch.optim.AdamW(MODEL.parameters(), lr=0.001, weight_decay=1e-4)
+    # optimizer = torch.optim.Adam(MODEL.parameters(), lr=0.001)
+    optimizer = torch.optim.AdamW(MODEL.parameters(), lr=0.001, weight_decay=1e-4)
     criterion = torch.nn.BCELoss()
 
     if plot_path is not None:
@@ -31,8 +31,11 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
         val_losses = []
         train_losses = []
 
+    grad_norms = []
+
     best_score = 0
     for epoch in range(num_epochs):
+        mean_norm = 0
         train_loss = 0
         correct_output = 0
         num_batches = 0
@@ -71,10 +74,16 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
             loss.backward()
             optimizer.step()
 
+            # ************** Gradient Clipping **************
+            norm = torch.norm(torch.cat([p.grad.flatten() for p in MODEL.parameters() if p.grad is not None]))
+            mean_norm += norm
+
             train_output = MODEL.predict(batch)
             train_loss += criterion(train_output, batch.y)
             num_batches += 1
             correct_output += torch.sum(batch.y == labels).item()
+        
+        grad_norms.append(mean_norm / num_batches)
 
         if epoch % 1 == 0:
             output = MODEL.predict(val_data)
@@ -114,7 +123,22 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
         else:
             ax.set_title('Baseline Classifier')
         ax.legend()
-        plt.savefig(plot_path)
+        plt.savefig('loss_' + plot_path)
+
+        plt.clf()
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(epoch_num, grad_norms, label='Gradient Norm')
+        ax.set_xlabel('Epochs')
+        ax.set_ylabel('Gradient Norm')
+        if model == 'custom':
+            ax.set_title('Custom Classifier')
+        else:
+            ax.set_title('Baseline Classifier')
+        ax.legend()
+        plt.savefig('grad_' + plot_path)
+
 
 def main():
     parser = argparse.ArgumentParser(description="Training a classification model")

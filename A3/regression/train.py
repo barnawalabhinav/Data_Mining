@@ -32,8 +32,11 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
         train_losses = []
         val_losses = []
 
+    grad_norms = []
+
     best_loss = float('inf')
     for epoch in range(num_epochs):
+        mean_norm = 0
         train_loss = 0
         num_batches = 0
         num_graphs = 0
@@ -50,9 +53,15 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
             loss.backward()
             optimizer.step()
 
+            # ************** Gradient Clipping **************
+            norm = torch.norm(torch.cat([p.grad.flatten() for p in MODEL.parameters() if p.grad is not None]))
+            mean_norm += norm
+
             train_output = MODEL.predict(batch)
             train_loss += torch.sqrt(criterion(train_output, batch.y))
             num_batches += 1
+
+        grad_norms.append(mean_norm / num_batches)
 
         if epoch % 1 == 0:
             output = MODEL.predict(val_data)
@@ -83,7 +92,21 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
         else:
             ax.set_title('Baseline Regressor')
         ax.legend()
-        plt.savefig(plot_path)
+        plt.savefig('loss_' + plot_path)
+
+        plt.clf()
+
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(epochs, grad_norms, label='Gradient Norm')
+        ax.set_xlabel('Epochs')
+        ax.set_ylabel('Gradient Norm')
+        if model == 'custom':
+            ax.set_title('Custom Regressor')
+        else:
+            ax.set_title('Baseline Regressor')
+        ax.legend()
+        plt.savefig('grad_' + plot_path)
 
 
 def main():
