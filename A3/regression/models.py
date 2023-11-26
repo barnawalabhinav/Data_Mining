@@ -101,7 +101,8 @@ class Custom_Regressor(torch.nn.Module):
 
     @torch.no_grad()
     def predict(self, data) -> torch.Tensor:
-        return self.forward(data, eval=True)
+        # return self.forward(data, eval=True)
+        return self.forward(data, eval=False)
 
 
 def load_data(data_dir, batch_size=-1, num_edims=5, num_ndims=5, load_labels=True, shuffle=True):

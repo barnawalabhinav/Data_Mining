@@ -54,11 +54,16 @@ def predict(model_path, test_data_path, model='custom', show_acc=False):
     output = MODEL.predict(data)
 
     if show_acc:
-        labels = torch.where(output < 0.5, torch.tensor(0.0), torch.tensor(1.0))
+        labels = torch.where(output < 0.45, torch.tensor(0.0), torch.tensor(1.0))
         correct_output = torch.sum(data.y == labels).item()
         print(f"Accuracy with model {model}: {correct_output / data.num_graphs * 100 :.2f} %")
         score = roc_auc_score(data.y.detach().cpu().numpy(), output.detach().cpu().numpy())
         print(f"ROC AUC score with model {model}: {score:.4f}")
+        
+        correct_output_1 = torch.sum(data.y[data.y == 1] == labels[data.y == 1]).item()
+        correct_output_0 = torch.sum(data.y[data.y == 0] == labels[data.y == 0]).item()
+        print(f"Accuracy for class 1 with model {model}: {correct_output_1 / torch.sum(data.y == 1).item() * 100 :.2f} %")
+        print(f"Accuracy for class 0 with model {model}: {correct_output_0 / torch.sum(data.y == 0).item() * 100 :.2f} %")
 
     return output
 
@@ -73,8 +78,8 @@ def main():
     print(f"Evaluating the classification model. Model will be loaded from {args.model_path}. Test dataset will be loaded from {args.dataset_path}.")
 
     predicted_output = predict(args.model_path, args.dataset_path, args.model, args.show_acc)
-    output = predicted_output.cpu().numpy()
-    tocsv(output, task="classification")
+    # output = predicted_output.cpu().numpy()
+    # tocsv(output, task="classification")
 
 
 if __name__=="__main__":

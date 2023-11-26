@@ -1,11 +1,11 @@
 import torch
 import argparse
-
-from models import Custom_Classifier, Logistic_Regressor, load_data, hinge_loss, svm_loss
+import matplotlib.pyplot as plt
 from sklearn.metrics import roc_auc_score
+from models import Custom_Classifier, Logistic_Regressor, load_data, hinge_loss, svm_loss
 
 
-def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size=32, model='custom', checkpoint_path=None):
+def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size=32, model='custom', checkpoint_path=None, plot_path=None):
     dataset, dataloader = load_data(train_data_path, batch_size)
     _, val_dataloader = load_data(val_data_path, -1)
     val_data = next(iter(val_dataloader))
@@ -26,8 +26,11 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
     # optimizer = torch.optim.AdamW(MODEL.parameters(), lr=0.001, weight_decay=1e-4)
     criterion = torch.nn.BCELoss()
 
-    best_loss = float('inf')
-    best_acc = 0
+    if plot_path is not None:
+        epoch_num = []
+        val_losses = []
+        train_losses = []
+
     best_score = 0
     for epoch in range(num_epochs):
         train_loss = 0
@@ -87,19 +90,31 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
             print(f'Val Loss: {val_loss:.4f}')
             print(f'Train Accuracy: {correct_output / num_graphs * 100 :.2f} %')
             print(f'Val Accuracy: {val_acc :.2f} %')
-            print(f'val ROC_AUC_score: {val_score:.4f}')
+            print(f'Val ROC_AUC_score: {val_score :.4f}')
 
-            # if val_loss < best_loss:
-                # best_loss = val_loss
-            # if val_acc > best_acc:
-            #     best_acc = val_acc
             if val_score > best_score:
                 best_score = val_score
                 print('Saving the best model')
                 torch.save(MODEL.state_dict(), model_path)
 
-    # torch.save(MODEL.state_dict(), model_path)
+            if plot_path is not None:
+                epoch_num.append(epoch)
+                val_losses.append(val_loss)
+                train_losses.append(train_loss/num_batches)
 
+    if plot_path is not None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(epoch_num, val_losses, label='Val Loss')
+        ax.plot(epoch_num, train_losses, label='Train Loss')
+        ax.set_xlabel('Epochs')
+        ax.set_ylabel('BCE Loss')
+        if model == 'custom':
+            ax.set_title('Custom Classifier')
+        else:
+            ax.set_title('Baseline Classifier')
+        ax.legend()
+        plt.savefig(plot_path)
 
 def main():
     parser = argparse.ArgumentParser(description="Training a classification model")
@@ -110,12 +125,13 @@ def main():
     parser.add_argument("--num_epochs", required=False, default=200, type=int)
     parser.add_argument("--batch_size", required=False, default=32, type=int)
     parser.add_argument("--model", required=False, default='custom', type=str)
+    parser.add_argument("--plot_path", required=False, default=None, type=str)
     args = parser.parse_args()
     print(
         f"Training a classification model. Output will be saved at {args.model_path}. Dataset will be loaded from {args.dataset_path}. Validation dataset will be loaded from {args.val_dataset_path}.")
 
     train(args.model_path, args.dataset_path, args.val_dataset_path,
-          args.num_epochs, args.batch_size, args.model, args.checkpoint)
+          args.num_epochs, args.batch_size, args.model, args.checkpoint, args.plot_path)
 
 
 if __name__ == "__main__":

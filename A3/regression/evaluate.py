@@ -53,7 +53,7 @@ def predict(model_path, test_data_path, model='custom', show_acc=False):
         MODEL = Linear_Regressor(in_channels=dataset.num_features, out_channels=1)
         MODEL.load_state_dict(torch.load(model_path))
 
-    MODEL.eval()
+    # MODEL.eval()
     data = next(iter(dataloader))
     output = MODEL.predict(data)
 

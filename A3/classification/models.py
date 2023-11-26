@@ -3,7 +3,6 @@ import math
 import torch
 import pandas as pd
 import torch.nn.functional as F
-from torch_geometric.explain.algorithm import GNNExplainer
 from torch_geometric.nn import GCNConv, SAGEConv, GINConv, GATConv, GINEConv
 from torch_geometric.nn import global_mean_pool, global_add_pool, global_max_pool
 from torch_geometric.data import Data, Dataset, Batch

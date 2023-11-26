@@ -1,10 +1,11 @@
 import torch
 import argparse
+import matplotlib.pyplot as plt
 
 from models import Custom_Regressor, Linear_Regressor, load_data
 
 
-def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size=32, model='custom', checkpoint_path=None):
+def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size=32, model='custom', checkpoint_path=None, plot_path=None):
     dataset, dataloader = load_data(train_data_path, batch_size)
     _, val_dataloader = load_data(val_data_path, -1)
     val_data = next(iter(val_dataloader))
@@ -25,6 +26,11 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
     # optimizer = torch.optim.Adam(MODEL.parameters(), lr=0.001)
     optimizer = torch.optim.AdamW(MODEL.parameters(), lr=0.001, weight_decay=1e-4)
     criterion = torch.nn.MSELoss()
+
+    if plot_path is not None:
+        epochs = []
+        train_losses = []
+        val_losses = []
 
     best_loss = float('inf')
     for epoch in range(num_epochs):
@@ -60,7 +66,24 @@ def train(model_path, train_data_path, val_data_path, num_epochs=200, batch_size
                 print('Saving the best model')
                 torch.save(MODEL.state_dict(), model_path)
 
-    # torch.save(MODEL.state_dict(), model_path)
+            if plot_path is not None:
+                epochs.append(epoch)
+                train_losses.append(train_loss/num_batches)
+                val_losses.append(val_loss)
+
+    if plot_path is not None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(epochs, train_losses, label='Train Loss')
+        ax.plot(epochs, val_losses, label='Val Loss')
+        ax.set_xlabel('Epochs')
+        ax.set_ylabel('RMSE Loss')
+        if model == 'custom':
+            ax.set_title('Custom Regressor')
+        else:
+            ax.set_title('Baseline Regressor')
+        ax.legend()
+        plt.savefig(plot_path)
 
 
 def main():
@@ -72,12 +95,13 @@ def main():
     parser.add_argument("--num_epochs", required=False, default=300, type=int)
     parser.add_argument("--batch_size", required=False, default=32, type=int)
     parser.add_argument("--model", required=False, default='custom', type=str)
+    parser.add_argument("--plot_path", required=False, default=None, type=str)
     args = parser.parse_args()
     print(
         f"Training a regression model. Output will be saved at {args.model_path}. Dataset will be loaded from {args.dataset_path}. Validation dataset will be loaded from {args.val_dataset_path}.")
 
     train(args.model_path, args.dataset_path, args.val_dataset_path,
-          args.num_epochs, args.batch_size, args.model, args.checkpoint)
+          args.num_epochs, args.batch_size, args.model, args.checkpoint, args.plot_path)
 
 
 if __name__ == "__main__":
