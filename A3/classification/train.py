@@ -146,7 +146,7 @@ def main():
     parser.add_argument("--dataset_path", required=True)
     parser.add_argument("--val_dataset_path", required=True)
     parser.add_argument("--checkpoint", required=False, default=None, type=str)
-    parser.add_argument("--num_epochs", required=False, default=200, type=int)
+    parser.add_argument("--num_epochs", required=False, default=300, type=int)
     parser.add_argument("--batch_size", required=False, default=32, type=int)
     parser.add_argument("--model", required=False, default='custom', type=str)
     parser.add_argument("--plot_path", required=False, default=None, type=str)
